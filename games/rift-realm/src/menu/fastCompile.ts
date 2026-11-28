@@ -42,6 +42,12 @@ export const yieldFast = () => new Promise<void>((r) => { if (!channel) { setTim
 export const compileStats = { built: 0, objects: 0, ready: 0, pipelines: 0, ms: 0, calls: 0 };
 
 let onProgress: ((p: CompileProgress) => void) | undefined;
+let activeSliceMs = 20;
+let activeYieldFrame = false;
+const yieldFrame = () => new Promise<void>((r) => {
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => r());
+  else setTimeout(r, 16);
+});
 /** Install once (the menus do it for the pedestal); a later call only swaps the progress listener (the loading screen). */
 export function installFastCompile(renderer: THREE.WebGPURenderer, progress?: (p: CompileProgress) => void) {
   onProgress = progress;
@@ -93,7 +99,11 @@ export function installFastCompile(renderer: THREE.WebGPURenderer, progress?: (p
         this._nodes.updateAfter(ro);
       } catch (e) { console.warn('[load] precompile skipped an object', e); }
       compileStats.built++;
-      if (performance.now() - slice > 20) { report(); await yieldFast(); slice = performance.now(); }
+      if (performance.now() - slice > activeSliceMs) {
+        report();
+        await (activeYieldFrame ? yieldFrame() : yieldFast());
+        slice = performance.now();
+      }
     }
     report();
     // the pipelines compile in parallel; tick the progress while they land
@@ -105,14 +115,22 @@ export function installFastCompile(renderer: THREE.WebGPURenderer, progress?: (p
 }
 
 /**
- * Compile everything in the scene, not only what the camera sees now (three culls by the frustum while compiling),
- * so walking into new areas doesn't hitch on first sight. Meant for after the first frame, in the background.
+ * Compile everything in the scene in gentle 4 ms per-frame background slices (never starving live rAF rendering),
+ * so walking into new areas doesn't hitch on first sight.
  */
 export async function compileEverything(renderer: THREE.WebGPURenderer, scene: THREE.Scene, camera: THREE.Camera) {
+  const prevSlice = activeSliceMs, prevYield = activeYieldFrame;
+  activeSliceMs = 4;
+  activeYieldFrame = true;
   const culled: THREE.Object3D[] = [];
   scene.traverse((o) => { if (o.frustumCulled) { o.frustumCulled = false; culled.push(o); } });
+  // Restore frustumCulled on the very next microtask (right after synchronous projection collects queue items)
+  // so live gameplay frames never render the entire 2 km world unculled during background warm-up!
+  let restored = false;
+  const restore = () => { if (restored) return; restored = true; for (const o of culled) o.frustumCulled = true; };
+  queueMicrotask(restore);
   try { await renderer.compileAsync(scene, camera); }
-  finally { for (const o of culled) o.frustumCulled = true; }
+  finally { restore(); activeSliceMs = prevSlice; activeYieldFrame = prevYield; }
 }
 
 /**

@@ -152,8 +152,12 @@ export const octagon = (R: number, rot = Math.PI / 8): [number, number][] =>
 export function taperTube(curve: THREE.Curve<THREE.Vector3>, r0: number, r1: number, segs = 16, radial = 8, wobble = 0): THREE.BufferGeometry {
   const pos: number[] = [], idx: number[] = [];
   const frames = curve.computeFrenetFrames(segs, false);
+  const fallbackN = new THREE.Vector3(1, 0, 0), fallbackB = new THREE.Vector3(0, 0, 1);
   for (let i = 0; i <= segs; i++) {
-    const t = i / segs, p = curve.getPoint(t), N = frames.normals[i], B = frames.binormals[i];
+    const t = i / segs, p = curve.getPoint(t);
+    const fn = frames.normals[i], fb = frames.binormals[i];
+    const N = Number.isFinite(fn.x) && Number.isFinite(fn.y) && Number.isFinite(fn.z) ? fn : fallbackN;
+    const B = Number.isFinite(fb.x) && Number.isFinite(fb.y) && Number.isFinite(fb.z) ? fb : fallbackB;
     const r = r0 + (r1 - r0) * t;
     for (let j = 0; j < radial; j++) {
       const a = (j / radial) * Math.PI * 2;

@@ -214,13 +214,16 @@ export function createSkyCycle(scene: THREE.Scene, group: THREE.Object3D, render
       uDay.value = dayK;
       uFogBase.value = o.ground(player.x, player.z);
       godraysGain.value = dayK;
-      // a storm's haze is dark: a pale haze under a dark deck read as a bright band along the horizon
-      lerpC(tmpC, DAY.haze, GOLD.haze, gold); (uHaze.value as THREE.Color).copy(tmpC).lerp(GREY, cur.fogGrey).multiplyScalar(1 - 0.55 * cur.cloudDark);
-      uHorizonDim.value = 0.7 * cur.cloudDark;
-      lerpC(uGlow.value as THREE.Color, DAY.glow, GOLD.glow, gold);
+      // a storm's haze is dark; a blighted Elderwood shifts daylight haze toward smoky charred amber-ash
+      const blight = (globalThis as unknown as { __forestHealth?: { blight?: number } }).__forestHealth?.blight ?? 0;
+      lerpC(tmpC, DAY.haze, GOLD.haze, gold);
+      if (blight > 0.05) tmpC.lerp(tmpC2.setHex(0x6e4738), blight * 0.62);
+      (uHaze.value as THREE.Color).copy(tmpC).lerp(GREY, cur.fogGrey).multiplyScalar(1 - 0.55 * cur.cloudDark);
+      uHorizonDim.value = Math.min(0.88, 0.7 * cur.cloudDark + blight * 0.22);
+      lerpC(uGlow.value as THREE.Color, DAY.glow, GOLD.glow, Math.min(1, gold + blight * 0.55));
       (uSun.value as THREE.Vector3).copy(dir);
       uGlowK.value = 0.75 * cur.sun;
-      uDens.value = (NIGHT_DENSITY + (DAY.density - NIGHT_DENSITY) * dayK) / Math.max(0.25, 0.3 + 0.7 * cur.fogFar);
+      uDens.value = ((NIGHT_DENSITY + (DAY.density - NIGHT_DENSITY) * dayK) * (1 + blight * 0.35)) / Math.max(0.25, 0.3 + 0.7 * cur.fogFar);
       uSkyA.value = o.mode === 'day' ? 1 : smooth(-0.18, 0.05, sinE);
       // the day sky through canopy gaps was a blown white hole: hold it a little under the sun-lit ground
       uSkyDim.value = (1 - 0.55 * cur.cloudDark) * (1 - 0.5 * dayK);

@@ -5,6 +5,7 @@ import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { VesselId } from './vessels';
 import { VESSELS, VESSEL_ORDER } from './vessels';
+import { findActiveGamepad } from './controls';
 
 export type LootCategory = 'weapon' | 'shield' | 'armor' | 'item';
 export type ArmorSlot = 'head' | 'chest' | 'back' | 'shoulder' | 'belt';
@@ -290,6 +291,13 @@ export interface ArmoryEnv {
   onApply(preset: LoadoutPreset, stats: ComputedLoadoutStats): void;
   onItemEffect(effect: 'heal' | 'charge' | 'haste', def: LootDef): void;
   say(text: string, color: string): void;
+  onToggle?: (open: boolean) => void;
+  /** Whether mid-game character switching is allowed (true only in Free Roam). */
+  canSwitchVessel?: () => boolean;
+  /** Live active player vessel id (used to show the locked vessel accurately in structured modes). */
+  currentVessel?: () => VesselId;
+  /** Display name of the current mode (e.g. 'Free Roam', 'Wave Survival', 'Campaign'). */
+  modeName?: () => string;
 }
 
 interface LivePickup {
@@ -297,6 +305,8 @@ interface LivePickup {
   def: LootDef;
   group: THREE.Group;
   spinner: THREE.Group;
+  placeholder: THREE.Mesh;
+  meshState: 'none' | 'loading' | 'loaded';
   collected: boolean;
   respawnT: number;
   pos: THREE.Vector3;
@@ -320,12 +330,19 @@ export class WorldArmory {
   readonly loadouts: LoadoutPreset[];
   activeIdx = 0;
   private pickups: LivePickup[] = [];
+  private activeGlbLoads = 0;
   private panel: HTMLDivElement;
   private prompt: HTMLDivElement;
   private chip: HTMLDivElement;
+  private banner: HTMLDivElement;
+  private bannerTimer = 0;
   private open = false;
   private nearest: LivePickup | null = null;
   private t = 0;
+  private padMode = false;
+  private focusIdx = 0;
+  private padNavCd = 0;
+  private padPrev: boolean[] = [];
 
   constructor(private env: ArmoryEnv) {
     this.group.name = 'world-armory-pickups';
@@ -337,12 +354,18 @@ export class WorldArmory {
     this.activeIdx = saved.activeIdx;
     for (const id of saved.unlocked) if (LOOT_CATALOG[id]) this.unlocked.add(id);
 
-    // Spawn 3D pickups across Elderwood Hollow (+ Wilds when active)
+    // Spawn 3D pickups across Elderwood Hollow (+ Wilds when active) with shared materials & proximity GLB streaming (zero boot GLB cost!)
     const specs = env.wilds ? WORLD_PICKUPS : WORLD_PICKUPS.filter((s) => Math.abs(s.x) < 76 && Math.abs(s.z) < 76);
     const ringGeo = new THREE.TorusGeometry(0.68, 0.045, 8, 28);
     ringGeo.rotateX(Math.PI / 2);
     const beamGeo = new THREE.CylinderGeometry(0.14, 0.55, 2.8, 12, 1, true);
     const itemGeo = new THREE.OctahedronGeometry(0.32, 0);
+    const ringMats = new Map<number, THREE.MeshBasicNodeMaterial>();
+    const beamMats = new Map<number, THREE.MeshBasicNodeMaterial>();
+    const orbMats = new Map<number, THREE.MeshStandardNodeMaterial>();
+    const getRingMat = (hex: number) => ringMats.get(hex) ?? ringMats.set(hex, new THREE.MeshBasicNodeMaterial({ color: hex, transparent: true, opacity: 0.85 })).get(hex)!;
+    const getBeamMat = (hex: number) => beamMats.get(hex) ?? beamMats.set(hex, new THREE.MeshBasicNodeMaterial({ color: hex, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })).get(hex)!;
+    const getOrbMat = (hex: number) => orbMats.get(hex) ?? orbMats.set(hex, new THREE.MeshStandardNodeMaterial({ color: hex, emissive: hex, emissiveIntensity: 1.5, roughness: 0.2, metalness: 0.5 })).get(hex)!;
 
     for (const spec of specs) {
       const def = LOOT_CATALOG[spec.lootId];
@@ -354,54 +377,41 @@ export class WorldArmory {
       grp.position.set(spec.x, y, spec.z);
       grp.visible = !alreadyOwned;
 
-      const col = new THREE.Color(def.color);
-      const ringMat = new THREE.MeshBasicNodeMaterial({ color: col, transparent: true, opacity: 0.85 });
-      const beamMat = new THREE.MeshBasicNodeMaterial({ color: col, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
-      const ring = new THREE.Mesh(ringGeo, ringMat);
+      const ring = new THREE.Mesh(ringGeo, getRingMat(def.color));
       ring.position.y = 0.08;
-      const beam = new THREE.Mesh(beamGeo, beamMat);
+      const beam = new THREE.Mesh(beamGeo, getBeamMat(def.color));
       beam.position.y = 1.4;
       const spinner = new THREE.Group();
       spinner.position.y = 1.05;
+      const placeholder = new THREE.Mesh(itemGeo, getOrbMat(def.color));
+      spinner.add(placeholder);
       grp.add(ring, beam, spinner);
 
-      if (def.url) {
-        void loadGlb(def.url).then((src) => {
-          if (!src) return;
-          const clone = src.clone(true);
-          const box = new THREE.Box3().setFromObject(clone);
-          const sz = box.getSize(new THREE.Vector3());
-          const maxD = Math.max(sz.x, sz.y, sz.z, 0.1);
-          const target = def.category === 'weapon' || def.category === 'shield' ? 1.25 : 0.85;
-          clone.scale.setScalar(target / maxD);
-          box.setFromObject(clone);
-          const c = box.getCenter(new THREE.Vector3());
-          clone.position.set(-c.x, -c.y, -c.z);
-          if (def.category === 'weapon') clone.rotation.z = 0.45;
-          spinner.add(clone);
-        });
-      } else {
-        const orbMat = new THREE.MeshStandardNodeMaterial({ color: def.color, emissive: def.color, emissiveIntensity: 1.5, roughness: 0.2, metalness: 0.5 });
-        spinner.add(new THREE.Mesh(itemGeo, orbMat));
-      }
-
       this.group.add(grp);
-      this.pickups.push({ spec, def, group: grp, spinner, collected: alreadyOwned, respawnT: 0, pos: grp.position });
+      this.pickups.push({
+        spec, def, group: grp, spinner, placeholder,
+        meshState: def.url ? 'none' : 'loaded',
+        collected: alreadyOwned, respawnT: 0, pos: grp.position,
+      });
     }
 
-    // ── HUD prompt, active loadout chip & Loadout Armory panel ──
+    // ── HUD prompt, Void Sanctum Loadout Card, Switch Banner & Armory panel ──
     this.prompt = document.createElement('div');
-    this.prompt.style.cssText = 'position:fixed;left:50%;bottom:146px;transform:translateX(-50%);z-index:15;pointer-events:none;padding:7px 14px;border:1px solid #38bdf8aa;border-radius:5px;background:#03101de6;color:#e2f3ff;font:800 12px/1.3 system-ui,sans-serif;letter-spacing:.1em;display:none;box-shadow:0 4px 18px #000a';
+    this.prompt.style.cssText = 'position:fixed;left:50%;bottom:148px;transform:translateX(-50%);z-index:15;pointer-events:none;padding:8px 16px;border:1px solid #d9b26aaa;background:linear-gradient(160deg,#0e0a18eb,#07050ef2);color:#e9e4d8;font:700 12px/1.35 "Segoe UI",system-ui,sans-serif;letter-spacing:.1em;display:none;box-shadow:0 8px 26px #000c';
 
     this.chip = document.createElement('div');
-    this.chip.style.cssText = 'position:fixed;left:16px;bottom:48px;z-index:12;pointer-events:none;padding:5px 10px;border:1px solid #38bdf866;border-radius:4px;background:#030d18cc;color:#bfe9ff;font:700 11px/1.35 system-ui,sans-serif;letter-spacing:.08em';
+    this.chip.style.cssText = 'position:fixed;left:var(--hud-edge,20px);bottom:58px;z-index:12;pointer-events:auto;cursor:pointer;padding:7px 12px;border:1px solid #d9b26a55;border-left:2px solid #d9b26a;background:linear-gradient(160deg,#0d0a16de,#07050ee6);color:#e9e4d8;font:600 11px/1.4 "Segoe UI",system-ui,sans-serif;letter-spacing:.08em;box-shadow:0 6px 20px #0009';
+    this.chip.addEventListener('click', (e) => { e.stopPropagation(); this.toggle(); });
+
+    this.banner = document.createElement('div');
+    this.banner.style.cssText = 'position:fixed;left:50%;top:82px;transform:translateX(-50%) translateY(-8px);z-index:22;pointer-events:none;padding:10px 22px;border:1px solid #d9b26a88;background:linear-gradient(160deg,#0e0a18f2,#06040cf4);color:#e9e4d8;text-align:center;font-family:"Segoe UI",system-ui,sans-serif;opacity:0;transition:opacity .25s ease,transform .25s ease;box-shadow:0 12px 36px #000c';
 
     this.panel = document.createElement('div');
-    this.panel.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:45;width:680px;max-width:95vw;max-height:86vh;overflow-y:auto;padding:18px 20px;border:1px solid #38bdf8aa;border-radius:8px;background:#04101ef4;color:#e2f3ff;font:13px/1.45 system-ui,sans-serif;display:none;box-shadow:0 16px 50px #000c';
+    this.panel.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:45;width:740px;max-width:95vw;max-height:86vh;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding:24px 26px;border:1px solid #d9b26a66;background:linear-gradient(165deg,#0e0a18f7,#06040df9);color:#e9e4d8;font:13px/1.45 "Segoe UI",system-ui,sans-serif;display:none;box-shadow:0 24px 70px #000e,inset 0 0 36px #d9b26a10;backdrop-filter:blur(10px)';
     for (const ev of ['mousedown', 'mouseup', 'click', 'pointerdown', 'wheel'] as const) {
       this.panel.addEventListener(ev, (e) => e.stopPropagation());
     }
-    document.body.append(this.prompt, this.chip, this.panel);
+    document.body.append(this.prompt, this.chip, this.banner, this.panel);
 
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
@@ -446,15 +456,30 @@ export class WorldArmory {
 
     this.saveState();
     this.applyActive();
-    this.env.say(`EQUIPPED ${p.def.name.toUpperCase()} · [L] LOADOUTS`, hexStr(p.def.color));
+    this.showBanner(`EQUIPPED ${p.def.name.toUpperCase()}`, this.padMode ? 'Hold VIEW (or Start → Armory) to customize Loadouts' : 'Press [L] to customize Loadouts · [ / ] to switch slots', hexStr(p.def.color));
     return true;
+  }
+
+  private showBanner(title: string, sub: string, accent = '#d9b26a') {
+    this.banner.style.borderColor = accent;
+    this.banner.innerHTML = `<div style="font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:${accent}">${title}</div><div style="font-size:11px;color:#cfc6dd;letter-spacing:.08em;margin-top:3px">${sub}</div>`;
+    this.banner.style.opacity = '1';
+    this.banner.style.transform = 'translateX(-50%) translateY(0)';
+    window.clearTimeout(this.bannerTimer);
+    this.bannerTimer = window.setTimeout(() => {
+      this.banner.style.opacity = '0';
+      this.banner.style.transform = 'translateX(-50%) translateY(-8px)';
+    }, 2800);
   }
 
   selectLoadout(idx: number) {
     this.activeIdx = ((idx % this.loadouts.length) + this.loadouts.length) % this.loadouts.length;
     this.saveState();
     this.applyActive();
-    this.env.say(`LOADOUT ${this.activeIdx + 1} · ${this.active.name.toUpperCase()}`, '#38bdf8');
+    const hint = this.padMode
+      ? 'Hold LT + D-Pad ◀ ▶ to switch Loadout 1 / 2 / 3 · Hold VIEW for Armory'
+      : 'Press [ or ] to switch Loadout 1 / 2 / 3 · Press L for Armory';
+    this.showBanner(`LOADOUT ${this.activeIdx + 1} / ${this.loadouts.length} · ${this.active.name.toUpperCase()}`, hint, '#38bdf8');
     if (this.open) this.renderPanel();
   }
 
@@ -463,17 +488,109 @@ export class WorldArmory {
     this.env.onApply(this.active, this.stats);
   }
 
+  setPadMode(on: boolean) {
+    if (this.padMode === on) return;
+    this.padMode = on;
+    this.updateChip();
+    if (this.open) this.renderPanel();
+  }
+
+  /** Refresh HUD chip / Armory when mode locks or unlocks character switching. */
+  refreshModeLock() {
+    this.updateChip();
+    if (this.open) this.renderPanel();
+  }
+
   toggle(on = !this.open) {
+    if (this.open === on) return;
     this.open = on;
     this.panel.style.display = on ? 'block' : 'none';
     if (on) {
       try { document.exitPointerLock(); } catch { /* none */ }
+      this.focusIdx = 0;
+      this.padNavCd = 0.22;
+      const pad = findActiveGamepad(navigator.getGamepads?.());
+      this.padPrev = pad ? pad.buttons.map((b) => Boolean(b.pressed || b.value > 0.45)) : [];
       this.renderPanel();
     }
+    this.env.onToggle?.(on);
+  }
+
+  private applyFocus() {
+    const btns = Array.from(this.panel.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+    if (!btns.length) return;
+    this.focusIdx = ((this.focusIdx % btns.length) + btns.length) % btns.length;
+    btns.forEach((b, i) => {
+      const on = this.padMode && i === this.focusIdx;
+      b.style.outline = on ? '2px solid #d9b26a' : 'none';
+      b.style.boxShadow = on ? '0 0 18px #d9b26a66' : 'none';
+    });
+    if (this.padMode) btns[this.focusIdx]?.scrollIntoView({ block: 'nearest' });
+  }
+
+  private pollGamepad(dt: number) {
+    const pad = findActiveGamepad(navigator.getGamepads?.());
+    if (!pad) return;
+    const isDown = (i: number) => Boolean(pad.buttons[i]?.pressed || (pad.buttons[i]?.value ?? 0) > 0.45);
+    const edge = (i: number) => {
+      const d = isDown(i);
+      const was = this.padPrev[i] ?? false;
+      this.padPrev[i] = d;
+      return d && !was;
+    };
+
+    if (edge(1) || edge(9)) { this.toggle(false); return; } // B / Circle or Start closes Armory
+    if (edge(4)) { this.selectLoadout(this.activeIdx - 1); return; } // LB: prev loadout tab
+    if (edge(5)) { this.selectLoadout(this.activeIdx + 1); return; } // RB: next loadout tab
+    if (edge(0)) {
+      const btns = Array.from(this.panel.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+      btns[this.focusIdx]?.click();
+      return;
+    }
+
+    this.padNavCd = Math.max(0, this.padNavCd - dt);
+    const lx = pad.axes[0] ?? 0;
+    const ly = pad.axes[1] ?? 0;
+    const left = isDown(14) || lx < -0.55;
+    const right = isDown(15) || lx > 0.55;
+    const up = isDown(12) || ly < -0.55;
+    const down = isDown(13) || ly > 0.55;
+    if ((left || right || up || down) && this.padNavCd <= 0) {
+      this.padMode = true;
+      const step = left ? -1 : right ? 1 : up ? -3 : 3;
+      this.focusIdx += step;
+      this.applyFocus();
+      this.padNavCd = 0.19;
+    }
+  }
+
+  private streamPickupGlb(p: LivePickup) {
+    if (!p.def.url || p.meshState !== 'none' || this.activeGlbLoads >= 2) return;
+    p.meshState = 'loading';
+    this.activeGlbLoads++;
+    void loadGlb(p.def.url).then((src) => {
+      if (!src) { p.meshState = 'loaded'; return; }
+      const clone = src.clone(true);
+      const box = new THREE.Box3().setFromObject(clone);
+      const sz = box.getSize(new THREE.Vector3());
+      const maxD = Math.max(sz.x, sz.y, sz.z, 0.1);
+      const target = p.def.category === 'weapon' || p.def.category === 'shield' ? 1.25 : 0.85;
+      clone.scale.setScalar(target / maxD);
+      box.setFromObject(clone);
+      const c = box.getCenter(new THREE.Vector3());
+      clone.position.set(-c.x, -c.y, -c.z);
+      if (p.def.category === 'weapon') clone.rotation.z = 0.45;
+      p.placeholder.visible = false;
+      p.spinner.add(clone);
+      p.meshState = 'loaded';
+    }).finally(() => {
+      this.activeGlbLoads = Math.max(0, this.activeGlbLoads - 1);
+    });
   }
 
   update(dt: number, playerPos: THREE.Vector3, enabled: boolean) {
     this.t += dt;
+    if (this.open) this.pollGamepad(dt);
     let best: LivePickup | null = null;
     let bestD = 3.5;
 
@@ -486,6 +603,9 @@ export class WorldArmory {
         continue;
       }
       const d = p.pos.distanceTo(playerPos);
+      if (enabled && d < 75 && p.meshState === 'none' && this.activeGlbLoads < 2) {
+        this.streamPickupGlb(p);
+      }
       if (d < 95) {
         p.spinner.rotation.y += dt * 1.4;
         p.spinner.position.y = 1.05 + Math.sin(this.t * 2.4 + p.pos.x * 0.2) * 0.14;
@@ -495,81 +615,108 @@ export class WorldArmory {
 
     this.nearest = best;
     if (best && !this.open) {
+      const key = this.padMode ? 'D-UP' : 'H';
       this.prompt.style.display = 'block';
       this.prompt.style.borderColor = hexStr(best.def.color);
-      this.prompt.innerHTML = `<span style="color:${hexStr(best.def.color)}">[H] PICK UP ${best.def.name.toUpperCase()}</span> <span style="opacity:.75;font-weight:600">· ${best.def.desc}</span>`;
+      this.prompt.innerHTML = `<kbd class="rr-kbd">${key}</kbd> <span style="color:${hexStr(best.def.color)};margin-left:4px">PICK UP ${best.def.name.toUpperCase()}</span> <span style="opacity:.78;font-weight:500">· ${best.def.desc}</span>`;
     } else {
       this.prompt.style.display = 'none';
     }
   }
 
+  private shownVesselFor(p: LoadoutPreset): VesselId {
+    const canSwitch = this.env.canSwitchVessel ? this.env.canSwitchVessel() : true;
+    return !canSwitch && this.env.currentVessel ? this.env.currentVessel() : p.vessel;
+  }
+
   private updateChip() {
     const p = this.active;
-    const wName = p.weaponId ? LOOT_CATALOG[p.weaponId]?.name ?? p.weaponId : VESSELS[p.vessel].weaponName;
+    const vid = this.shownVesselFor(p);
+    const wName = p.weaponId ? LOOT_CATALOG[p.weaponId]?.name ?? p.weaponId : VESSELS[vid].weaponName;
     const armorCount = Object.values(p.armor).filter(Boolean).length + (p.shieldId ? 1 : 0);
-    this.chip.innerHTML = `LOADOUT ${this.activeIdx + 1}: <b style="color:#7dd3fc">${p.name.toUpperCase()}</b> · ${wName}${armorCount ? ` · +${armorCount} GEAR` : ''} <span style="opacity:.65">[L] / [ ]</span>`;
+    const pips = this.loadouts.map((_, i) =>
+      `<span style="display:inline-block;padding:0 5px;margin-right:3px;border:1px solid ${i === this.activeIdx ? '#d9b26a' : '#ffffff26'};background:${i === this.activeIdx ? '#d9b26a33' : 'transparent'};color:${i === this.activeIdx ? '#fff8e6' : '#8f88a0'};font-size:10px;font-weight:700">${i + 1}</span>`,
+    ).join('');
+    const keys = this.padMode
+      ? `<kbd class="rr-kbd">LT</kbd>+<kbd class="rr-kbd">D-◀▶</kbd> Swap · <kbd class="rr-kbd">HOLD VIEW</kbd> Armory`
+      : `<kbd class="rr-kbd">[</kbd><kbd class="rr-kbd">]</kbd> Swap · <kbd class="rr-kbd">L</kbd> Armory`;
+    this.chip.innerHTML = `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${pips}<b style="color:#d9b26a;letter-spacing:.14em">${p.name.toUpperCase()}</b><span style="color:#cfc6dd">· ${wName}${armorCount ? ` · +${armorCount} Gear` : ''}</span></div><div style="margin-top:4px;font-size:10px;color:#9a93a8">${keys}</div>`;
   }
 
   private renderPanel() {
     const p = this.active;
     const st = this.stats;
+    const canSwitch = this.env.canSwitchVessel ? this.env.canSwitchVessel() : true;
+    const vid = this.shownVesselFor(p);
+    const modeLabel = this.env.modeName?.() ?? 'Structured Mode';
     const unlockedList = [...this.unlocked].map((id) => LOOT_CATALOG[id]).filter(Boolean);
     const weapons = unlockedList.filter((d) => d.category === 'weapon');
     const shields = unlockedList.filter((d) => d.category === 'shield');
     const armors = unlockedList.filter((d) => d.category === 'armor');
 
-    const tabHtml = this.loadouts.map((lo, i) => `
-      <button data-lo="${i}" style="padding:7px 14px;border:1px solid ${i === this.activeIdx ? '#38bdf8' : '#334155'};border-radius:4px;background:${i === this.activeIdx ? '#0c2b44' : '#061424'};color:${i === this.activeIdx ? '#e0f2fe' : '#94a3b8'};font:700 12px system-ui;cursor:pointer">
-        ${i + 1}. ${lo.name} (${VESSELS[lo.vessel].name.split(' ')[0]})
-      </button>`).join('');
+    const tabHtml = this.loadouts.map((lo, i) => {
+      const tabV = !canSwitch ? vid : lo.vessel;
+      return `
+      <button data-lo="${i}" style="padding:8px 14px;border:1px solid ${i === this.activeIdx ? '#d9b26a' : '#ffffff22'};background:${i === this.activeIdx ? 'linear-gradient(90deg,#d9b26a2c,#d9b26a0c)' : '#0b0812cc'};color:${i === this.activeIdx ? '#fff8e6' : '#9a93a8'};font:600 12px 'Segoe UI',sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer">
+        ${i + 1}. ${lo.name}${canSwitch ? ` · ${VESSELS[tabV].name.split(' ')[0]}` : ''}
+      </button>`;
+    }).join('');
 
-    const vesselBtns = VESSEL_ORDER.map((vid) => {
-      const v = VESSELS[vid];
-      const on = p.vessel === vid;
+    const vesselBtns = VESSEL_ORDER.map((vKey) => {
+      const v = VESSELS[vKey];
+      const on = vid === vKey;
       const gTag = v.grapple ? ' · GRAPPLE' : '';
-      return `<button data-vessel="${vid}" style="padding:6px 10px;border:1px solid ${on ? '#38bdf8' : '#1e293b'};border-radius:4px;background:${on ? '#0e3554' : '#071422'};color:#e2f3ff;font:700 11px system-ui;cursor:pointer">${v.name.split(' ')[0]}${gTag}</button>`;
+      return `<button data-vessel="${vKey}" ${canSwitch ? '' : 'disabled'} style="padding:7px 12px;border:1px solid ${on ? '#38bdf8' : '#ffffff1c'};background:${on ? '#38bdf822' : '#0b0812cc'};color:${on ? '#fff' : '#9a93a8'};opacity:${canSwitch || on ? '1' : '0.35'};font:600 11px 'Segoe UI',sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:${canSwitch ? 'pointer' : 'not-allowed'}">${v.name.split(' ')[0]}${gTag}</button>`;
     }).join('');
 
     const itemBtn = (id: string | null, label: string, sub: string, active: boolean, col: number, attr: string) => `
-      <button ${attr}="${id ?? ''}" style="text-align:left;padding:8px 10px;border:1px solid ${active ? hexStr(col) : '#1e293b'};border-radius:5px;background:${active ? '#0d2a42' : '#061320'};color:#e2f3ff;cursor:pointer">
-        <div style="font:700 12px system-ui;color:${active ? hexStr(col) : '#e2f3ff'}">${label}${active ? ' ✓' : ''}</div>
-        <div style="font-size:11px;opacity:.75;margin-top:2px">${sub}</div>
+      <button ${attr}="${id ?? ''}" style="text-align:left;padding:9px 11px;border:1px solid ${active ? hexStr(col) : '#ffffff18'};background:${active ? 'linear-gradient(155deg,#181328e8,#0c0916f0)' : '#0a0712cc'};color:#e9e4d8;cursor:pointer">
+        <div style="font:600 12px 'Segoe UI',sans-serif;color:${active ? hexStr(col) : '#e9e4d8'};letter-spacing:.04em">${label}${active ? ' ◆' : ''}</div>
+        <div style="font-size:11px;color:#9a93a8;margin-top:2px">${sub}</div>
       </button>`;
 
     this.panel.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div><b style="letter-spacing:.2em;font-size:15px">ARMORY & LOADOUTS</b> <span style="opacity:.65;font-size:11px">(${this.unlocked.size} / 19 gear discovered)</span></div>
-        <button data-close="1" style="padding:4px 10px;border:1px solid #475569;border-radius:4px;background:transparent;color:#cbd5e1;cursor:pointer">CLOSE [L]</button>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:12px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid #d9b26a33">
+        <div>
+          <div style="font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:#d9b26a;margin-bottom:3px">Vesselbound · Loadout Sanctum</div>
+          <div style="font:300 26px/1.05 'Segoe UI',sans-serif;letter-spacing:.2em;text-transform:uppercase;background:linear-gradient(180deg,#fff8e6 10%,#d9b26a 60%,#8b6832 100%);-webkit-background-clip:text;color:transparent">Armory &amp; Loadouts</div>
+          <div style="font-size:11px;color:#9a93a8;margin-top:3px">${this.unlocked.size} / 19 world relics &amp; weapons discovered · Quick-swap anytime with ${this.padMode ? '<kbd class="rr-kbd">LT</kbd>+<kbd class="rr-kbd">D-◀▶</kbd>' : '<kbd class="rr-kbd">[</kbd> <kbd class="rr-kbd">]</kbd>'}</div>
+        </div>
+        <button data-close="1" style="padding:7px 14px;border:1px solid #d9b26a77;background:#d9b26a18;color:#fff8e6;font:600 11px 'Segoe UI',sans-serif;letter-spacing:.2em;text-transform:uppercase;cursor:pointer">${this.padMode ? 'Close [B]' : 'Close [L]'}</button>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${tabHtml}</div>
-      <div style="padding:8px 12px;border:1px solid #1e3a5f;border-radius:5px;background:#07192d;margin-bottom:12px;display:flex;gap:14px;flex-wrap:wrap;font-size:12px">
-        <span>HP: <b style="color:#4ade80">${VESSELS[p.vessel].maxHp + st.maxHpBonus}</b></span>
-        <span>DMG: <b style="color:#fbbf24">${Math.round(st.dmgMul * 100)}%</b></span>
-        <span>ARMOR: <b style="color:#38bdf8">${Math.round(st.dmgReduce * 100)}%</b></span>
-        <span>SPEED: <b style="color:#a5f3fc">${Math.round(st.moveMul * 100)}%</b></span>
-        <span>SWIM: <b style="color:#2dd4bf">${Math.round(st.swimMul * 100)}%</b></span>
-        <span>CLIMB: <b style="color:#c084fc">${Math.round(st.climbMul * 100)}%</b></span>
-        <span>GRAPPLE: <b style="color:${VESSELS[p.vessel].grapple ? '#4ade80' : '#64748b'}">${VESSELS[p.vessel].grapple ? `${Math.round(VESSELS[p.vessel].grapple!.range * st.grappleRangeMul)}m` : 'NONE'}</b></span>
+      ${this.padMode ? '<div style="font-size:11px;color:#e8c88a;margin-bottom:12px;letter-spacing:.08em"><kbd class="rr-kbd">D-PAD / LS</kbd> Navigate · <kbd class="rr-kbd btn-a">A</kbd> Equip · <kbd class="rr-kbd">LB</kbd> <kbd class="rr-kbd">RB</kbd> Loadout Slot · <kbd class="rr-kbd btn-b">B</kbd> Close</div>' : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">${tabHtml}</div>
+      <div style="padding:9px 14px;border:1px solid #d9b26a33;border-left:2px solid #d9b26a;background:#0a0714cc;margin-bottom:14px;display:flex;gap:14px;flex-wrap:wrap;font-size:12px">
+        <span>HP <b style="color:#4ade80">${VESSELS[vid].maxHp + st.maxHpBonus}</b></span>
+        <span>DMG <b style="color:#fbbf24">${Math.round(st.dmgMul * 100)}%</b></span>
+        <span>ARMOR <b style="color:#38bdf8">${Math.round(st.dmgReduce * 100)}%</b></span>
+        <span>SPEED <b style="color:#a5f3fc">${Math.round(st.moveMul * 100)}%</b></span>
+        <span>SWIM <b style="color:#2dd4bf">${Math.round(st.swimMul * 100)}%</b></span>
+        <span>CLIMB <b style="color:#c084fc">${Math.round(st.climbMul * 100)}%</b></span>
+        <span>GRAPPLE <b style="color:${VESSELS[vid].grapple ? '#4ade80' : '#64748b'}">${VESSELS[vid].grapple ? `${Math.round(VESSELS[vid].grapple!.range * st.grappleRangeMul)}m` : 'NONE'}</b></span>
       </div>
-      <div style="margin-bottom:12px"><div style="font-size:11px;letter-spacing:.14em;opacity:.7;margin-bottom:6px">SOUL VESSEL</div><div style="display:flex;gap:6px;flex-wrap:wrap">${vesselBtns}</div></div>
-      <div style="margin-bottom:12px">
-        <div style="font-size:11px;letter-spacing:.14em;opacity:.7;margin-bottom:6px">PRIMARY WEAPON</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px">
-          ${itemBtn(null, VESSELS[p.vessel].weaponName, 'Signature Vessel weapon', p.weaponId === null, VESSELS[p.vessel].primaryColor, 'data-weap')}
+      <div style="margin-bottom:14px">
+        <div style="font-size:10.5px;letter-spacing:.26em;color:#d9b26a;margin-bottom:6px;text-transform:uppercase">Soul Vessel ${canSwitch ? '· Free Roam (Switchable)' : `· Locked in ${modeLabel} (Switch in Free Roam)`}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${vesselBtns}</div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:10.5px;letter-spacing:.26em;color:#d9b26a;margin-bottom:6px;text-transform:uppercase">Primary Weapon</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px">
+          ${itemBtn(null, VESSELS[vid].weaponName, 'Signature Vessel weapon', p.weaponId === null, VESSELS[vid].primaryColor, 'data-weap')}
           ${weapons.map((w) => itemBtn(w.id, w.name, w.desc, p.weaponId === w.id, w.color, 'data-weap')).join('')}
         </div>
       </div>
-      <div style="margin-bottom:12px">
-        <div style="font-size:11px;letter-spacing:.14em;opacity:.7;margin-bottom:6px">OFF-HAND SHIELD</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px">
+      <div style="margin-bottom:14px">
+        <div style="font-size:10.5px;letter-spacing:.26em;color:#d9b26a;margin-bottom:6px;text-transform:uppercase">Off-Hand Shield</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px">
           ${itemBtn(null, 'No Shield', 'Unencumbered off-hand', p.shieldId === null, 0x94a3b8, 'data-shield')}
           ${shields.map((s) => itemBtn(s.id, s.name, s.desc, p.shieldId === s.id, s.color, 'data-shield')).join('')}
         </div>
       </div>
       <div>
-        <div style="font-size:11px;letter-spacing:.14em;opacity:.7;margin-bottom:6px">MODULAR 3D ARMOR PIECES ${armors.length ? '' : '— EXPLORE LANDMARKS TO DISCOVER'}</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px">
-          ${armors.map((a) => itemBtn(a.id, `${a.name} (${a.armorSlot})`, a.desc, p.armor[a.armorSlot!] === a.id, a.color, 'data-armor')).join('') || '<div style="opacity:.6;font-size:12px">Look for glowing beacons at Outpost Cabin, Ruined Chapel, Watchtower, Great Oak Deck, Waterfall Pool, and Wilds ruins.</div>'}
+        <div style="font-size:10.5px;letter-spacing:.26em;color:#d9b26a;margin-bottom:6px;text-transform:uppercase">Modular 3D Armor Pieces ${armors.length ? '' : '— Explore Landmarks to Discover'}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px">
+          ${armors.map((a) => itemBtn(a.id, `${a.name} (${a.armorSlot})`, a.desc, p.armor[a.armorSlot!] === a.id, a.color, 'data-armor')).join('') || '<div style="color:#9a93a8;font-size:12px">Look for glowing beacons at Outpost Cabin, Ruined Chapel, Watchtower, Great Oak Deck, Waterfall Pool, and Wilds ruins.</div>'}
         </div>
       </div>
     `;
@@ -579,7 +726,11 @@ export class WorldArmory {
       b.addEventListener('click', () => this.selectLoadout(Number(b.dataset.lo))),
     );
     this.panel.querySelectorAll<HTMLButtonElement>('[data-vessel]').forEach((b) =>
-      b.addEventListener('click', () => { p.vessel = b.dataset.vessel as VesselId; this.saveState(); this.applyActive(); this.renderPanel(); }),
+      b.addEventListener('click', () => {
+        if (!canSwitch) return;
+        p.vessel = b.dataset.vessel as VesselId;
+        this.saveState(); this.applyActive(); this.renderPanel();
+      }),
     );
     this.panel.querySelectorAll<HTMLButtonElement>('[data-weap]').forEach((b) =>
       b.addEventListener('click', () => { p.weaponId = b.dataset.weap || null; this.saveState(); this.applyActive(); this.renderPanel(); }),
@@ -596,6 +747,7 @@ export class WorldArmory {
         this.saveState(); this.applyActive(); this.renderPanel();
       }),
     );
+    this.applyFocus();
   }
 
   private loadState(): { loadouts: LoadoutPreset[]; activeIdx: number; unlocked: string[] } {

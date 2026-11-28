@@ -47,6 +47,8 @@ export interface PreyEnv {
 }
 
 let nextId = 200000; // apart from enemy (1…) and predator (100000…) ids
+const PREY_HIT_GEO = new THREE.CylinderGeometry(0.6, 0.6, 2.1, 8);
+const PREY_HIT_MAT = new THREE.MeshBasicNodeMaterial({ visible: false });
 export class Prey {
   readonly id = nextId++;
   readonly spec: PreySpec;
@@ -70,6 +72,9 @@ export class Prey {
   calmT = 0; spared = false;
   /** Walk to this point (a bonded creature bringing a gift); null otherwise. */
   come: THREE.Vector3 | null = null;
+  /** Blight-diseased when Elderwood loads in poor health; curable with Living Water spray. */
+  diseased = false;
+  diseaseHalo: THREE.Mesh | null = null;
   readonly herd: Herd;
   readonly last = new THREE.Vector3();
   constructor(herd: Herd, at: THREE.Vector3) {
@@ -80,8 +85,9 @@ export class Prey {
     this.body = new CreatureBody(this.spec.body, this.spec.size * (0.9 + Math.random() * 0.2));
     this.mesh.add(this.body.root);
     const h = this.body.height;
-    this.hitTarget = new THREE.Mesh(new THREE.CylinderGeometry(0.6 * this.spec.size, 0.6 * this.spec.size, 2.1, 8), new THREE.MeshBasicNodeMaterial({ visible: false }));
-    this.hitTarget.scale.y = h / 2.1; this.hitTarget.position.y = h / 2; this.hitTarget.userData.preyId = this.id;
+    this.hitTarget = new THREE.Mesh(PREY_HIT_GEO, PREY_HIT_MAT);
+    this.hitTarget.scale.set(this.spec.size, h / 2.1, this.spec.size);
+    this.hitTarget.position.y = h / 2; this.hitTarget.userData.preyId = this.id;
     this.mesh.add(this.hitTarget);
     this.mesh.position.copy(at); this.last.copy(at); this.goal.copy(at);
     this.home = new THREE.Vector3(herd.x, at.y, herd.z);
@@ -94,7 +100,7 @@ export class Prey {
 
 export interface Carcass { id: number; kind: PreyKind; meat: string; bites: number; pos: THREE.Vector3; obj: THREE.Object3D; body: CreatureBody; life: number; sinking: number }
 
-const ACTIVE_R = 210, DESPAWN_R = 300, RESPAWN = 90;
+const ACTIVE_R = 175, DESPAWN_R = 215, RESPAWN = 70;
 const tmp = new THREE.Vector3();
 const FOREST_ROAM: PreyKind[] = ['deer', 'deer', 'stag', 'jelly', 'dragonfly', 'sloth', 'beetle', 'salamander', 'caterpillar', 'toad'];
 const WATER_ROAM: PreyKind[] = ['turtle', 'axolotl', 'blue_axolotl', 'newt', 'dragonfly', 'jelly', 'toad'];
@@ -104,18 +110,31 @@ export class PreyDirector {
   readonly list: Prey[] = [];
   readonly carcasses: Carcass[] = [];
   private herds: { herd: Herd; live: Prey[]; deadAt: number[]; dynamic?: boolean }[];
-  private clock = 0; private herdT = 0; private roamCd = 0;
+  private clock = 0; private herdT = 0; private roamCd = 0; private frameN = 0;
   private cid = 1;
   private maxLive: number;
+  private lastPlayer = new THREE.Vector3();
+  private hasLastPlayer = false;
 
   constructor(private env: PreyEnv, herds: Herd[]) {
     this.group.name = 'danger-prey';
     env.scene.add(this.group);
     this.herds = herds.map((herd) => ({ herd, live: [], deadAt: [] }));
-    this.maxLive = env.lo ? 28 : 54;
+    this.maxLive = env.lo ? 38 : 76;
   }
 
   private manage(player: THREE.Vector3) {
+    // Track player travel direction so dynamic wildlife populates ahead as you explore new territory
+    let moveAng = Math.random() * Math.PI * 2;
+    let hasMoveDir = false;
+    if (this.hasLastPlayer) {
+      const mdx = player.x - this.lastPlayer.x, mdz = player.z - this.lastPlayer.z;
+      if (mdx * mdx + mdz * mdz > 1.5) { moveAng = Math.atan2(mdz, mdx); hasMoveDir = true; }
+    }
+    this.lastPlayer.copy(player);
+    this.hasLastPlayer = true;
+
+    // Recycle distant creatures first so live slots stay concentrated around the player's current region
     for (let hi = this.herds.length - 1; hi >= 0; hi--) {
       const h = this.herds[hi];
       const d = Math.hypot(h.herd.x - player.x, h.herd.z - player.z);
@@ -124,38 +143,56 @@ export class PreyDirector {
         if (!p.alive) { h.live.splice(i, 1); continue; }
         if (p.pos.distanceTo(player) > DESPAWN_R) { this.drop(p); h.live.splice(i, 1); }
       }
-      if (h.dynamic && h.live.length === 0 && d > DESPAWN_R * 0.7) { this.herds.splice(hi, 1); continue; }
+      if (h.dynamic && h.live.length === 0 && d > DESPAWN_R * 0.65) { this.herds.splice(hi, 1); continue; }
       h.deadAt = h.deadAt.filter((t) => this.clock - t < RESPAWN);
-      if (d > ACTIVE_R) continue;
-      while (h.live.length + h.deadAt.length < h.herd.n && this.list.length < this.maxLive) {
+    }
+
+    // Stagger spawns (max 2 skeletons per tick) to guarantee silky-smooth frame times with zero spawn stutters
+    let spawned = 0;
+    const SPAWN_BUDGET = 2;
+
+    // Populate nearest static herds first so the area right around you fills before far edges
+    const nearHerds = this.herds
+      .map((h) => ({ h, d: Math.hypot(h.herd.x - player.x, h.herd.z - player.z) }))
+      .filter((x) => x.d <= ACTIVE_R)
+      .sort((a, b) => a.d - b.d);
+    for (const { h } of nearHerds) {
+      while (spawned < SPAWN_BUDGET && h.live.length + h.deadAt.length < h.herd.n && this.list.length < this.maxLive) {
         const a = Math.random() * Math.PI * 2, r = Math.random() * h.herd.r * 0.65, x = h.herd.x + Math.cos(a) * r, z = h.herd.z + Math.sin(a) * r;
         if (Math.hypot(x - player.x, z - player.z) < 16) break;
         const p = new Prey(h.herd, new THREE.Vector3(x, this.env.ground(x, z), z));
         h.live.push(p); this.list.push(p); this.group.add(p.mesh);
+        spawned++;
       }
+      if (spawned >= SPAWN_BUDGET) break;
     }
-    // Dynamic roaming wildlife ring: wherever the player explores in the 2 km Wilds, keep the surrounding forest alive.
-    if (this.env.wilds !== false && this.roamCd <= 0 && this.list.length < this.maxLive) {
-      const nearTarget = this.env.lo ? 6 : 11;
+
+    // Continuous roaming wildlife ecosystem: eliminate empty stretches anywhere in the 2 km Wilds
+    if (spawned < SPAWN_BUDGET && this.env.wilds !== false && this.roamCd <= 0 && this.list.length < this.maxLive) {
+      const nearTarget = this.env.lo ? 12 : 24;
       let near = 0;
-      for (const p of this.list) if (p.alive && p.pos.distanceTo(player) < 125) near++;
+      for (const p of this.list) if (p.alive && p.pos.distanceTo(player) < 115) near++;
       if (near < nearTarget) {
-        this.roamCd = 3.5;
-        const a = Math.random() * Math.PI * 2;
-        const dist = 42 + Math.random() * 68;
+        this.roamCd = 0.9;
+        const a = hasMoveDir && Math.random() < 0.65
+          ? moveAng + (Math.random() - 0.5) * Math.PI * 0.9
+          : Math.random() * Math.PI * 2;
+        const dist = 28 + Math.random() * 68;
         const cx = THREE.MathUtils.clamp(player.x + Math.cos(a) * dist, -840, 840);
         const cz = THREE.MathUtils.clamp(player.z + Math.sin(a) * dist, -840, 840);
         const gy = this.env.ground(cx, cz);
-        const pool = gy < -32 || Math.hypot(cx - 235, cz - 170) < 120 ? WATER_ROAM : FOREST_ROAM;
+        const nearWater = gy < -28 || Math.hypot(cx - 235, cz - 170) < 125 || Math.hypot(cx - 300, cz + 30) < 100;
+        const pool = nearWater ? WATER_ROAM : FOREST_ROAM;
         const kind = pool[Math.floor(Math.random() * pool.length)];
-        const count = kind === 'stag' || kind === 'sloth' ? 2 : 2 + Math.floor(Math.random() * 2);
+        const count = kind === 'stag' || kind === 'sloth' ? 2 : 3 + Math.floor(Math.random() * 2);
         const herd: Herd = { id: `roam-${kind}-${this.cid++}`, kind, x: cx, z: cz, r: 28, n: count };
         const entry = { herd, live: [] as Prey[], deadAt: [] as number[], dynamic: true };
-        for (let k = 0; k < count && this.list.length < this.maxLive; k++) {
-          const oa = Math.random() * Math.PI * 2, or = 2 + Math.random() * 10;
+        for (let k = 0; k < count && spawned < SPAWN_BUDGET && this.list.length < this.maxLive; k++) {
+          const oa = Math.random() * Math.PI * 2, or = 2 + Math.random() * 11;
           const x = cx + Math.cos(oa) * or, z = cz + Math.sin(oa) * or;
           const p = new Prey(herd, new THREE.Vector3(x, this.env.ground(x, z), z));
           entry.live.push(p); this.list.push(p); this.group.add(p.mesh);
+          spawned++;
         }
         this.herds.push(entry);
       }
@@ -228,10 +265,12 @@ export class PreyDirector {
 
   update(dt: number, player: THREE.Vector3, crouched: boolean, threats: THREE.Vector3[]) {
     this.clock += dt;
+    this.frameN = (this.frameN + 1) & 1;
     this.roamCd = Math.max(0, this.roamCd - dt);
-    if ((this.herdT -= dt) <= 0) { this.herdT = 1; this.manage(player); }
+    if ((this.herdT -= dt) <= 0) { this.herdT = 0.45; this.manage(player); }
     const env = this.env;
-    for (const p of this.list) {
+    for (let idx = 0; idx < this.list.length; idx++) {
+      const p = this.list[idx];
       p.t -= dt; p.kickCd -= dt;
       p.body.glow += (1 - p.body.glow) * Math.min(1, dt * 3);
       // senses: you (crouched you get much closer), predators near (gentle flyers & turtles are less skittish)
@@ -239,7 +278,7 @@ export class PreyDirector {
       const shy = p.spec.shy ?? 1;
       const base = (crouched ? 6 : 16) * shy, fr = env.fearR ? env.fearR(p, base) : base;
       if (p.state !== 'flee' && p.state !== 'stand' && pd < fr) this.bolt(p, player);
-      for (const t of threats) if (p.state !== 'flee' && t.distanceTo(p.pos) < 20 * shy) { this.bolt(p, t); break; }
+      if (pd < 95) for (const t of threats) if (p.state !== 'flee' && t.distanceTo(p.pos) < 20 * shy) { this.bolt(p, t); break; }
       let want = 0;
       if (p.come && p.state !== 'flee' && p.state !== 'stand') {   // walking up to the player (a gift)
         p.state = 'walk'; p.t = 2; p.goal.copy(p.come); want = p.spec.walk * 2.2;
@@ -271,10 +310,11 @@ export class PreyDirector {
         let dy = Math.atan2(p.fear.x - p.pos.x, p.fear.z - p.pos.z) - p.mesh.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); p.mesh.rotation.y += dy * Math.min(1, dt * 8);
       }
       p.pos.y += (env.ground(p.pos.x, p.pos.z) - p.pos.y) * Math.min(1, dt * 10);
-      if (!p.spec.fly) env.resolve(p.pos, 0.45 * p.spec.size, 1.6);
+      if (!p.spec.fly && pd < 78) env.resolve(p.pos, 0.45 * p.spec.size, 1.6);
       const sp = Math.hypot(p.pos.x - p.last.x, p.pos.z - p.last.z) / Math.max(dt, 1e-3);
       p.last.copy(p.pos);
-      p.body.update(dt, sp);
+      // Far wildlife (> 82 m) animates every alternating frame at 2× dt to keep CPU skeletal skinning silky smooth
+      if (pd < 82 || (idx & 1) === this.frameN) p.body.update(pd < 82 ? dt : dt * 2, sp);
     }
     for (let i = this.carcasses.length - 1; i >= 0; i--) {
       const c = this.carcasses[i];

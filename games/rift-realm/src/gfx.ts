@@ -30,17 +30,54 @@ export interface Gfx {
   dynres: { min: number; max: number; start: number; targetMs: number } | null;
 }
 
+export function isMobileClient(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent ?? '';
+  if (/Android|iPhone|iPad|iPod|Mobile|Silk/i.test(ua)) return true;
+  return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
+}
+
+/** Cap effective pixelRatio so ultra-wide 32:9 displays & high-DPI mobile screens stay silky smooth without GPU fill stalls. */
+export function cappedPixelRatio(width: number, height: number, rawDpr: number, maxPixels: number, maxDpr: number): number {
+  const base = Math.min(Math.max(0.5, rawDpr || 1), maxDpr);
+  const area = Math.max(1, width * height);
+  const byBudget = Math.sqrt(maxPixels / area);
+  return Math.max(0.65, Math.min(base, byBudget));
+}
+
 export function pickGfx(adapter: { vendor?: string; architecture?: string }, forced: string | null): Gfx {
-  const dpr = Math.min(window.devicePixelRatio, 2);
+  const w = typeof window !== 'undefined' ? window.innerWidth : 1920;
+  const h = typeof window !== 'undefined' ? window.innerHeight : 1080;
+  const rawDpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
+  const mobile = isMobileClient();
+  const qs = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
+  const target = Number(qs.get('fps')) || 60;
+
+  if (mobile && forced !== 'high') {
+    const mobilePr = cappedPixelRatio(w, h, rawDpr, 1_550_000, 1.25);
+    return {
+      profile: forced === 'low' ? 'low' : 'intel',
+      tier: 'low',
+      shadows: forced !== 'low' && qs.get('shadows') !== '0',
+      shadowMapMax: 1024,
+      post: forced === 'low' ? null : 'scaled',
+      pixelRatio: mobilePr,
+      dynres: forced === 'low' ? null : { min: 0.55, max: 0.95, start: Number(qs.get('res')) || 0.72, targetMs: 1000 / Math.min(60, target) },
+    };
+  }
+
   const auto: GfxProfile = adapter.vendor === 'intel' ? 'intel' : 'high';
   const profile: GfxProfile = forced === 'low' || forced === 'high' || forced === 'intel' ? forced : auto;
   if (profile === 'low') return { profile, tier: 'low', shadows: false, shadowMapMax: 0, post: null, pixelRatio: 0.7, dynres: null };
-  if (profile === 'high') return { profile, tier: 'high', shadows: true, shadowMapMax: 4096, post: 'full', pixelRatio: dpr, dynres: null };
+  if (profile === 'high') {
+    // Ultra-wide / 4K fill-rate guard: keep crisp native clarity while capping total shaded pixels <= 4.8M for stutter-free 60+ FPS
+    const pr = cappedPixelRatio(w, h, rawDpr, 4_800_000, 2);
+    return { profile, tier: 'high', shadows: true, shadowMapMax: 4096, post: 'full', pixelRatio: pr, dynres: null };
+  }
   // intel: the canvas at native size (UI, the FSR output), the 3D at a dynamic fraction of it
-  const qs = new URLSearchParams(location.search);
-  const target = Number(qs.get('fps')) || 60;
+  const pr = cappedPixelRatio(w, h, rawDpr, 2_600_000, 1.5);
   return {
-    profile, tier: qs.get('content') === 'high' ? 'high' : 'low', shadows: qs.get('shadows') !== '0', shadowMapMax: 2048, post: 'scaled', pixelRatio: Math.min(dpr, 1.5),
+    profile, tier: qs.get('content') === 'high' ? 'high' : 'low', shadows: qs.get('shadows') !== '0', shadowMapMax: 2048, post: 'scaled', pixelRatio: pr,
     dynres: { min: 0.5, max: 1, start: Number(qs.get('res')) || 0.67, targetMs: 1000 / target },
   };
 }

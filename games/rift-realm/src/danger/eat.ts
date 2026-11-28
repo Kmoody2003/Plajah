@@ -140,7 +140,7 @@ export class EatAction {
   update(dt: number) {
     const p = this.env.player, pos = p.object.position, F = this.env.forage;
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    const pad = pads?.[0];
+    const pad = [...pads].find((g) => g && g.connected !== false) ?? null;
     const padHeld = !!pad && !!(pad.buttons[12]?.pressed);
     const raw = (this.keyHeld || padHeld || this.touchHeld) && p.enabled && !p.downed && !this.env.busy?.();
     const tgt = p.enabled && !p.downed ? this.find(pos) : null;

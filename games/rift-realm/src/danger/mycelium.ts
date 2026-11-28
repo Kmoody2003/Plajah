@@ -9,7 +9,7 @@
 //  · Spirit charge: some fungi (about one in eight, and every Chargecap) hold spirit energy; stand near one and it
 //    recharges your gun (weapons' addCharge). Chargecaps can be picked.
 import * as THREE from 'three/webgpu';
-import { abs, color, dot, float, normalView, positionViewDirection, sin, time, uniform } from 'three/tsl';
+import { abs, color, dot, float, mix, normalView, positionViewDirection, sin, time, uniform } from 'three/tsl';
 import type { Recipe, VfxSystem } from '../../../../services/vfx';
 import { POISON_MIST } from '../../../../services/vfx/hazards';
 import type { PlayerController } from '../player';
@@ -17,8 +17,47 @@ import type { Forage, Item } from './forage';
 import type { SoulMeter } from './soul';
 import type { DangerAudio } from './audio';
 import type { PlayerStatus } from './status';
-import { mycelGuideEmissive, setGuide } from './guideNode';
+import { mycelGuideEmissive, setGuide, type GuideSignalKind } from './guideNode';
 import { forest, type ForestEvent } from './forest';
+
+export type ForestDisposition = 'helping' | 'silent' | 'hostile';
+
+/**
+ * Pure decision rule for the Elderwood Tree & Fungi Communications Network:
+ *  · Helping: pulses CRIMSON RED when a Demon Horde/Champion lurks nearby; pulses EMERALD-GOLD to guide you
+ *    toward healing fungi / Living Waters when wounded, poisoned, or low on Spirit.
+ *  · Silent: the forest declines to aid you (stayed cold or harmed its creatures) — vines stay still and quiet.
+ *  · Hostile: darkened soul — silent on aid/warnings and fungi actively attack with spores and entangling roots.
+ */
+export function resolveForestNetworkSignal(params: {
+  soul: number;
+  forestTrust: number;
+  hpFrac: number;
+  poisoned: boolean;
+  chargeFrac: number;
+  nearestDemonDist: number | null;
+  nearestAidDist: number | null;
+  inCombat: boolean;
+}): { disposition: ForestDisposition; signal: GuideSignalKind; urgent: boolean } {
+  const effective = params.soul + params.forestTrust * 0.25;
+  if (params.soul <= -0.3) return { disposition: 'hostile', signal: 'off', urgent: false };
+  if (effective < -0.1) return { disposition: 'silent', signal: 'off', urgent: false };
+
+  // Priority 1: Crimson alarm whenever demons lurk near a willing forest (even mid-combat so you spot flanks!)
+  if (params.nearestDemonDist !== null && params.nearestDemonDist <= 95) {
+    return { disposition: 'helping', signal: 'danger', urgent: params.nearestDemonDist <= 55 };
+  }
+  // Priority 2: Urgent emerald-gold healing / spirit beckon when wounded, poisoned, or low on charge
+  const needsAid = params.hpFrac < 0.65 || params.poisoned || params.chargeFrac < 0.3;
+  if (needsAid && params.nearestAidDist !== null) {
+    return { disposition: 'helping', signal: 'aid', urgent: params.hpFrac < 0.42 || params.poisoned };
+  }
+  // Priority 3: Gentle nearby healthy-mushroom shimmer only when peaceful and close (no jarring ankle vine at spawn)
+  if (!params.inCombat && params.nearestAidDist !== null && params.nearestAidDist <= 22) {
+    return { disposition: 'helping', signal: 'aid', urgent: false };
+  }
+  return { disposition: 'helping', signal: 'off', urgent: false };
+}
 
 /** A spirit fungus holds this much charge and refills this fast (a top-up on the way, not a turret to camp). */
 const SPIRIT_STORE = 45, SPIRIT_REFILL = 0.75;
@@ -57,6 +96,11 @@ const GUIDE_MOTE: Recipe = {
   id: 'guide_mote',
   emitters: [{ layer: 'add', shape: 'soft', count: 1, life: [1.6, 2.4], speed: [2.2, 3], spread: 0.08, size: [0.07, 0.03], color: [0xc8ffd0, 0x3cff6a], intensity: 2.4, drag: 0.15, turbulence: 0.3 }],
 };
+/** Crimson alarm spores pulsing toward a lurking Demon Horde or Dark Champion. */
+const DANGER_MOTE: Recipe = {
+  id: 'danger_mote',
+  emitters: [{ layer: 'add', shape: 'soft', count: 1, life: [1.2, 1.8], speed: [3.0, 4.2], spread: 0.1, size: [0.09, 0.03], color: [0xffa0a8, 0xff1e2d], intensity: 2.8, drag: 0.12, turbulence: 0.35 }],
+};
 const REVEAL_PING: Recipe = {
   id: 'reveal_ping',
   emitters: [{ layer: 'add', shape: 'ring', count: 1, life: 1, speed: 0, size: [0.2, 2.4], color: [0xc8ffb0, 0x5aff8a], intensity: 1.2, alpha: [0.8, 0] }],
@@ -75,6 +119,12 @@ export interface MyceliumEnv {
   charge(n: number, src: string): void;
   /** How full the gun's charge is, 0…1 (if the weapons share it): low charge points guidance at a Chargecap. */
   chargeFrac?(): number | null;
+  /** Nearest active demon horde or dark champion (triggers crimson danger pulse when the forest helps you). */
+  nearestDemon?(): { pos: THREE.Vector3; label: string; dist: number; count: number } | null;
+  /** Nearest Living Water / healing spring (alternative aid target when wounded). */
+  nearestAidPoint?(): { pos: THREE.Vector3; label: string } | null;
+  /** Extra trust earned from healing blighted trees, defending wardens, or saving villages (-1..+2). */
+  forestTrust?(): number;
   hurt(dmg: number, why: string): void;
   say(text: string, color: string): void;
   /** Spore pods and shock fungi from the hazards (they join the network). */
@@ -97,13 +147,20 @@ export class Mycelium {
   private haloMat: THREE.Material; private ringMat: THREE.Material;
   private roots: THREE.Mesh | null = null;
   private rootMat: THREE.MeshStandardNodeMaterial;
-  private rootFrom = new THREE.Vector3(1e9, 0, 0); private rootTo: Item | null = null; private rootT = 0;
+  private rootFrom = new THREE.Vector3(1e9, 0, 0); private rootToPos = new THREE.Vector3(1e9, 0, 0); private rootT = 0;
   private beacon: THREE.Mesh;
+  private beaconMat!: THREE.MeshBasicNodeMaterial;
+  private uDanger = uniform(0);
   private reveals: THREE.Mesh[] = [];
   private revealT = 0;
   private guideOn = 0;
   private moteT = 0;
-  private target: Item | null = null;
+  private targetPos: THREE.Vector3 | null = null;
+  private targetLabel = '';
+  signalKind: GuideSignalKind = 'off';
+  disposition: ForestDisposition = 'helping';
+  private demonWarnT = 0;
+  private aidExplainDone = false;
   private hostT = 4;
   private pending: { at: number; kind: 'burst' | 'roots'; pos: THREE.Vector3 }[] = [];
   private rootSpikes: THREE.Group;
@@ -131,13 +188,14 @@ export class Mycelium {
     ring.colorNode = color(0xff3020).mul(1.8);
     ring.opacityNode = sin(time.mul(6)).mul(0.3).add(0.55);
     this.ringMat = ring;
-    // the surfacing roots: dark threads that carry the guidance glow
+    // the surfacing roots: dark threads that carry the emerald aid OR crimson danger pulse
     this.rootMat = new THREE.MeshStandardNodeMaterial({ color: 0x0c140a, roughness: 0.7 });
-    this.rootMat.emissiveNode = mycelGuideEmissive().mul(2.2).add(color(0x2aa04a).mul(this.beatGlow).mul(0.6));
-    // a soft green column over the mushroom the roots point at
+    this.rootMat.emissiveNode = mycelGuideEmissive().mul(2.2).add(mix(color(0x2aa04a), color(0xdc2626), this.uDanger).mul(this.beatGlow).mul(0.6));
+    // a soft column over the aid target (emerald) or lurking demon threat (crimson)
     const bm = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-    bm.colorNode = color(0x5aff7a).mul(1.4);
+    bm.colorNode = mix(color(0x5aff7a), color(0xff2a36), this.uDanger).mul(1.4);
     bm.opacityNode = float(0.35).mul(sin(time.mul(2.5)).mul(0.3).add(0.7)).mul(this.beatGlow.add(0.2).min(1));
+    this.beaconMat = bm;
     const bg = new THREE.CylinderGeometry(0.25, 0.6, 7, 16, 1, true); bg.translate(0, 3.5, 0);
     this.beacon = new THREE.Mesh(bg, bm); this.beacon.visible = false; this.beacon.frustumCulled = false;
     this.group.add(this.beacon);
@@ -233,32 +291,96 @@ export class Mycelium {
     }
     for (const h of this.halos) if (!h.used && h.g.visible) h.g.visible = false;
 
-    // ── guidance: the nearest healthy mushroom (a Chargecap when the gun runs low) ──
+    // ── Tree & Fungi Communications Network: Help (Emerald Aid / Crimson Demon Alarm) vs Silent vs Hostile ──
     const range = GUIDE_R[this.level];
-    const low = (env.chargeFrac?.() ?? 1) < 0.3;
-    let best: Item | null = null, bd = range;
+    const hpFrac = pl.maxHp > 0 ? pl.hp / pl.maxHp : 1;
+    const poisoned = env.status.has('poison') || env.status.has('burn');
+    const chargeFrac = env.chargeFrac?.() ?? 1;
+    const lowCharge = chargeFrac < 0.3;
+    let bestItem: Item | null = null, bd = range;
     for (const it of env.forage.items) {
-      if (!it.alive || !it.k.good || it.k.shape !== 'cap') continue;
-      const d = Math.hypot(it.pos.x - pp.x, it.pos.z - pp.z) * (low && it.kind === 'chargecap' ? 0.5 : 1);
-      if (d < bd && d > 2.2) { best = it; bd = d; }
+      if (!it.alive || !it.k.good) continue;
+      if (it.k.shape !== 'cap' && !(hpFrac < 0.65 && (it.k.shape === 'berries' || it.k.shape === 'fruit'))) continue;
+      const healWeight = hpFrac < 0.65 && (it.k.effect.kind === 'heal' || it.k.effect.kind === 'regen') ? 0.55 : 1;
+      const chargeWeight = lowCharge && it.kind === 'chargecap' ? 0.45 : 1;
+      const d = Math.hypot(it.pos.x - pp.x, it.pos.z - pp.z) * healWeight * chargeWeight;
+      if (d < bd && d > 2.2) { bestItem = it; bd = d; }
     }
-    const want = best && live && s > -0.3 && env.sinceCombat() > 3 ? 1 : 0;
-    this.guideOn += (want - this.guideOn) * Math.min(1, dt * (want ? 1.5 : 3));
-    if (best) this.target = best;
-    const tgt = this.target;
-    setGuide(pp, tgt?.pos ?? null, this.guideOn, 4 + this.level);
+    const livingAid = !bestItem && hpFrac < 0.65 ? (env.nearestAidPoint?.() ?? null) : null;
+    const aidPos = bestItem ? bestItem.pos : livingAid ? livingAid.pos : null;
+    const aidLabel = bestItem ? bestItem.k.name : livingAid ? livingAid.label : '';
+    const aidDist = aidPos ? Math.hypot(aidPos.x - pp.x, aidPos.z - pp.z) : null;
+    const demon = live ? (env.nearestDemon?.() ?? null) : null;
+
+    const decision = resolveForestNetworkSignal({
+      soul: s,
+      forestTrust: env.forestTrust?.() ?? 0,
+      hpFrac,
+      poisoned,
+      chargeFrac,
+      nearestDemonDist: demon ? demon.dist : null,
+      nearestAidDist: aidDist,
+      inCombat: env.sinceCombat() <= 3,
+    });
+    this.disposition = decision.disposition;
+    this.signalKind = live ? decision.signal : 'off';
+
+    let nextPos: THREE.Vector3 | null = null;
+    let nextLabel = '';
+    if (this.signalKind === 'danger' && demon) {
+      nextPos = demon.pos;
+      nextLabel = demon.label;
+      if ((this.demonWarnT -= dt) <= 0) {
+        this.demonWarnT = 13;
+        const dx = demon.pos.x - pp.x, dz = demon.pos.z - pp.z;
+        const ang = Math.atan2(dx, -dz) * 180 / Math.PI, dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+        const dir = dirs[((Math.round(ang / 45) % 8) + 8) % 8];
+        this.chip.style.borderColor = '#ff3b4e';
+        this.chip.style.color = '#fecdd3';
+        this.chip.style.background = '#28050ad8';
+        this.chip.textContent = `THE VINES PULSE RED · ${demon.label.toUpperCase()} LURKING · ${dir} ${Math.round(demon.dist)} m`;
+        this.chip.style.opacity = '1'; this.chipT = 4.5;
+      }
+    } else if (this.signalKind === 'aid' && aidPos) {
+      nextPos = aidPos;
+      nextLabel = aidLabel;
+      if (decision.urgent && !this.aidExplainDone) {
+        this.aidExplainDone = true;
+        this.chip.style.borderColor = '#4ade80';
+        this.chip.style.color = '#bbf7d0';
+        this.chip.style.background = '#052212d8';
+        this.chip.textContent = `THE FOREST OFFERS AID · FOLLOW THE EMERALD VINES TO ${aidLabel.toUpperCase() || 'HEALING'}`;
+        this.chip.style.opacity = '1'; this.chipT = 5.5;
+      }
+    }
+
+    const want = nextPos ? (decision.urgent ? 1 : 0.65) : 0;
+    this.guideOn += (want - this.guideOn) * Math.min(1, dt * (want ? 2.2 : 3.2));
+    if (nextPos) { this.targetPos = nextPos.clone(); this.targetLabel = nextLabel; }
+    const tgtPos = this.targetPos;
+    const isDanger = this.signalKind === 'danger';
+    this.uDanger.value = isDanger ? 1 : 0;
+    setGuide(pp, tgtPos, this.guideOn, (isDanger ? 7 : 4) + this.level, this.signalKind);
     this.beatGlow.value = this.guideOn;
-    if (tgt && this.guideOn > 0.02) {
-      this.beacon.visible = true; this.beacon.position.copy(tgt.pos);
-      if ((this.rootT -= dt) <= 0 && (this.rootTo !== tgt || this.rootFrom.distanceTo(pp) > 2.5)) { this.rootT = 0.35; this.buildRoots(pp, tgt); }
+    if (tgtPos && this.guideOn > 0.02) {
+      this.beacon.visible = !isDanger; // keep a clean emerald beacon on healing targets; crimson roots/vines point toward demons
+      if (!isDanger) this.beacon.position.copy(tgtPos);
+      if ((this.rootT -= dt) <= 0 && (this.rootToPos.distanceTo(tgtPos) > 2.5 || this.rootFrom.distanceTo(pp) > 2.5)) {
+        this.rootT = 0.35;
+        this.buildRoots(pp, tgtPos);
+      }
       if (this.roots) this.roots.visible = true;
       if ((this.moteT -= dt) <= 0) {
         this.moteT = this.env.lo ? 0.3 : 0.14;
-        const dx = tgt.pos.x - pp.x, dz = tgt.pos.z - pp.z, L = Math.hypot(dx, dz), f = Math.random() * Math.min(1, 30 / L);
+        const dx = tgtPos.x - pp.x, dz = tgtPos.z - pp.z, L = Math.max(0.5, Math.hypot(dx, dz)), f = Math.random() * Math.min(1, 30 / L);
         const x = pp.x + dx * f + (Math.random() - 0.5) * 1.2, z = pp.z + dz * f + (Math.random() - 0.5) * 1.2;
-        this.env.vfx.spawn(GUIDE_MOTE, this.v.set(x, this.env.ground(x, z) + 0.6 + Math.random() * 0.5, z), { dir: [dx / L, 0.02, dz / L] });
+        this.env.vfx.spawn(isDanger ? DANGER_MOTE : GUIDE_MOTE, this.v.set(x, this.env.ground(x, z) + 0.6 + Math.random() * 0.5, z), { dir: [dx / L, 0.02, dz / L] });
       }
-    } else { this.beacon.visible = false; if (this.roots) this.roots.visible = false; if (this.guideOn < 0.02) this.target = null; }
+    } else {
+      this.beacon.visible = false;
+      if (this.roots) this.roots.visible = false;
+      if (this.guideOn < 0.02) this.targetPos = null;
+    }
 
     // ── reveal (a creature's gift) ──
     this.revealT -= dt;
@@ -345,10 +467,10 @@ export class Mycelium {
     h.used = true; h.g.visible = true; h.g.position.copy(at); h.g.scale.setScalar(size);
   }
 
-  /** Three wavy roots along the ground from the player toward the mushroom (up to 40 m of them). */
-  private buildRoots(from: THREE.Vector3, to: Item) {
-    this.rootFrom.copy(from); this.rootTo = to;
-    const dx = to.pos.x - from.x, dz = to.pos.z - from.z, L = Math.hypot(dx, dz), ux = dx / L, uz = dz / L;
+  /** Three wavy roots along the ground from the player toward the aid target or lurking demon (up to 40 m). */
+  private buildRoots(from: THREE.Vector3, to: THREE.Vector3) {
+    this.rootFrom.copy(from); this.rootToPos.copy(to);
+    const dx = to.x - from.x, dz = to.z - from.z, L = Math.max(0.5, Math.hypot(dx, dz)), ux = dx / L, uz = dz / L;
     const len = Math.min(L, 40), geos: THREE.BufferGeometry[] = [];
     for (let k = 0; k < 3; k++) {
       const off = (k - 1) * 0.7, pts: THREE.Vector3[] = [];
@@ -368,7 +490,13 @@ export class Mycelium {
     this.group.add(this.roots);
   }
 
-  info() { return { level: this.level, eaten: this.eaten, guiding: this.target ? `${this.target.kind}@${this.target.pos.x.toFixed(0)},${this.target.pos.z.toFixed(0)}` : null, guideOn: +this.guideOn.toFixed(2), spirit: this.sites.filter((s) => s.spirit).length }; }
+  info() {
+    return {
+      level: this.level, eaten: this.eaten, disposition: this.disposition, signal: this.signalKind,
+      guiding: this.targetPos ? `${this.targetLabel}@${this.targetPos.x.toFixed(0)},${this.targetPos.z.toFixed(0)}` : null,
+      guideOn: +this.guideOn.toFixed(2), spirit: this.sites.filter((s) => s.spirit).length,
+    };
+  }
   dispose() { for (const u of this.unsub) u(); }
 }
 

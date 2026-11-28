@@ -24,7 +24,7 @@ import type { Enemy, EnemyManager } from '../enemies';
 import { enemyNav } from '../enemies';
 import type { PlayerController } from '../player';
 import type { VfxSystem, Recipe } from '../../../../services/vfx';
-import { bakeImpostor, impostorMaterial, impostorMesh, setImpostor } from '../../../../services/vegetation/lod/impostor';
+import { setImpostor } from '../../../../services/vegetation/lod/impostor';
 import { CORE } from '../world/layout';
 import { Ent, type EntActKind } from './ent';
 import { Eruptions, FX, pickWarden, wardenById, WARDENS, type Warden } from './wardens';
@@ -42,6 +42,10 @@ interface DangerLike {
   predators?: {
     list: { id: number; alive: boolean; mesh: THREE.Object3D; hitTarget: THREE.Object3D }[];
     damage?(id: number, dmg: number, from: THREE.Vector3 | null, knock?: number, byPlayer?: boolean): unknown;
+  };
+  demons?: {
+    list: { id: number; alive: boolean; boss: boolean; pos: THREE.Vector3; mesh: THREE.Object3D }[];
+    areaHit?(at: THREE.Vector3, radius: number, dmg: number, byPlayer: boolean, knock?: number, hitstun?: number): number;
   };
 }
 
@@ -268,25 +272,29 @@ export class Ents {
     return g;
   }
 
-  /** Compile its shaders with the level (no hitch when it comes into view) and bake its far impostor. */
-  async prepare(renderer: THREE.WebGPURenderer, camera: THREE.Camera) {
-    const t0 = performance.now();
-    try { await renderer.compileAsync(this.group, camera, this.ctx.scene); } catch (e) { console.warn('[ents] compile', e); }
-    const t1 = performance.now();
-    for (const g of this.guards) {
-      try {
-        const copy = g.ent.root.clone(true);
-        copy.position.set(0, 0, 0); copy.rotation.set(0, 0, 0); copy.updateMatrixWorld(true);
-        const sc = this.ctx.scene;
-        const atlas = await bakeImpostor(renderer, [copy], { frames: this.ctx.lo ? 5 : 6, size: this.ctx.lo ? 512 : 768, environment: sc.environment as THREE.Texture | null, envIntensity: sc.environmentIntensity });
-        const im = impostorMesh(atlas, 1, impostorMaterial(atlas, { brightness: sc.environment ? 1.05 : 1.35, flipV: true }));
-        im.name = 'ent-impostor'; im.count = 0; im.frustumCulled = false;
-        this.group.add(im); g.impostor = im;
-        try { await renderer.compileAsync(im, camera, sc); } catch { /* compiles on first draw */ }
-      } catch (e) { console.warn('[ents] impostor bake', e); }
-    }
+  /** Instant non-blocking boot prep: wardens stand ready in procedural form and stream sculpted 58-bone GLBs one-by-one in the background after gameplay starts. */
+  async prepare(_renderer: THREE.WebGPURenderer, _camera: THREE.Camera) {
     this.lods();
-    console.info(`[ents] ready (${this.guards.length} wardens): compiled in ${Math.round(t1 - t0)} ms, impostors baked in ${Math.round(performance.now() - t1)} ms`);
+    console.info(`[ents] ready (${this.guards.length} wardens): instant boot; sculpted GLB rigs will stream gently after spawn`);
+  }
+
+  private rigStreamStarted = false;
+  /** Begin gentle sequential streaming of high-quality sculpted Grovewarden GLBs (nearest first, 1 at a time) after gameplay starts. */
+  startRigStreaming() {
+    if (this.rigStreamStarted || typeof window === 'undefined') return;
+    this.rigStreamStarted = true;
+    const streamNext = () => {
+      const pp = this.ctx.player.object.position;
+      const todo = this.guards
+        .filter((g) => !g.ent.rigged)
+        .sort((a, b) => a.ent.pos.distanceToSquared(pp) - b.ent.pos.distanceToSquared(pp));
+      const next = todo[0];
+      if (!next) return;
+      void next.ent.loadRiggedModel().finally(() => {
+        window.setTimeout(streamNext, 1400);
+      });
+    };
+    window.setTimeout(streamNext, 2200);
   }
 
   // ── what it does ──
@@ -294,8 +302,13 @@ export class Ents {
     const ent = g.ent, pl = this.ctx.player, pp = pl.object.position;
     const soul = this.soul(), dP = Math.hypot(pp.x - ent.pos.x, pp.z - ent.pos.z);
     const alive = !pl.downed && pl.hp > 0;
-    // 1 — the rift's creatures near it (titans/bosses first); predators only when they hunt a light-souled player
+    // 1 — the rift's creatures & adversarial Demon Legions near it (titans/bosses first); predators when hunting a light-souled player
     let foe: THREE.Vector3 | null = null, foeD = Infinity;
+    for (const dm of this.danger?.demons?.list ?? []) {
+      if (!dm.alive) continue;
+      const d = Math.hypot(dm.pos.x - ent.pos.x, dm.pos.z - ent.pos.z), score = d * (dm.boss ? 0.42 : 0.85);
+      if (d < 95 && score < foeD) { foeD = score; foe = dm.pos; }
+    }
     for (const e of this.ctx.enemies.enemies) {
       if (e.hp <= 0) continue;
       const d = Math.hypot(e.mesh.position.x - ent.pos.x, e.mesh.position.z - ent.pos.z), score = d * (e.boss ? 0.5 : 1);
@@ -481,6 +494,7 @@ export class Ents {
       if (!p.alive || Math.hypot(p.mesh.position.x - at.x, p.mesh.position.z - at.z) > R) continue;
       pd.damage(p.id, Math.round(320 * Math.max(0.15, M.dmg)), at, M.knock, false);
     }
+    this.danger?.demons?.areaHit?.(at, R, Math.round(360 * Math.max(0.25, M.dmg)), false, M.knock, M.hold);
     if (move === 'throw') {
       if (d < 8) { this.ctx.player.lunge(dir.set(Math.sin(ent.yaw), 0, Math.cos(ent.yaw)), 26, 0.7); this.ctx.player.hop(15); }
       return;
@@ -590,9 +604,47 @@ export class Ents {
   }
   /** Walk with a target (the player's object, a rally marker); null lets it go back to its own life. */
   follow(id: number, target: THREE.Object3D | null) { const g = this.guards.find((q) => q.id === id); if (!g) return false; g.follow = target; if (!target) g.ent.goal = null; return true; }
+  /** Summon a Sworn Friend Grovewarden from anywhere across Elderwood to stride in from the near canopy (~52 m out). */
+  summonFriend(id: number, nearPos: THREE.Vector3) {
+    const g = this.guards.find((q) => q.id === id);
+    if (!g) return false;
+    const dist = Math.hypot(g.ent.pos.x - nearPos.x, g.ent.pos.z - nearPos.z);
+    if (dist > 85) {
+      const a = Math.random() * Math.PI * 2;
+      const sx = nearPos.x + Math.cos(a) * 54, sz = nearPos.z + Math.sin(a) * 54;
+      g.ent.place(sx, sz, Math.atan2(nearPos.x - sx, nearPos.z - sz));
+    }
+    g.ent.rooted = false;
+    g.follow = this.ctx.player.object;
+    this.ctx.sound('groan', 0.9, 0);
+    return true;
+  }
+  /** Forest restoration milestone: bring additional distinct Grovewardens into Elderwood to fight back the Demon Legions! */
+  reinforce(targetCount: number) {
+    const want = Math.min(6, Math.max(this.guards.length, targetCount));
+    const used = new Set(this.guards.map((g) => g.kind));
+    const pool = WARDENS.filter((w) => !used.has(w.id));
+    let added = 0;
+    while (this.guards.length < want && pool.length > 0) {
+      const w = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+      const spot = this.findSpot(this.ctx.player.object.position, 110, 240, w.id === 'sequoia', 120)
+        ?? this.findSpot(new THREE.Vector3(0, 0, 0), 120, 480, false, 120);
+      if (!spot) break;
+      const g = this.spawn('walk', spot, undefined, w);
+      if (g) {
+        added++;
+        void g.ent.loadRiggedModel();
+      }
+    }
+    if (added > 0) {
+      this.ctx.say(`${added} NEW GROVEWARDEN${added > 1 ? 'S' : ''} MARCH INTO ELDERWOOD TO FIGHT THE DEMONS!`, '#86efac');
+      this.ctx.sound('groan', 0.85, 0);
+    }
+    return added;
+  }
 
   // ── debug (?rrdebug: __rr.ents) ──
-  info() { return this.guards.map((g) => ({ id: g.id, kind: g.kind, mode: g.mode, x: +g.ent.pos.x.toFixed(1), z: +g.ent.pos.z.toFixed(1), y: +g.ent.pos.y.toFixed(1), yaw: +g.ent.yaw.toFixed(2), rooted: g.ent.rooted, act: g.ent.act?.kind ?? null, speed: +g.ent.speed.toFixed(2), awake: +g.ent.awake.toFixed(2), lod: g.lod, soul: this.soul(), dist: +g.ent.pos.distanceTo(this.ctx.player.object.position).toFixed(0) })); }
+  info() { return this.guards.map((g) => ({ id: g.id, kind: g.kind, rigged: g.ent.rigged, mode: g.mode, x: +g.ent.pos.x.toFixed(1), z: +g.ent.pos.z.toFixed(1), y: +g.ent.pos.y.toFixed(1), yaw: +g.ent.yaw.toFixed(2), rooted: g.ent.rooted, act: g.ent.act?.kind ?? null, speed: +g.ent.speed.toFixed(2), awake: +g.ent.awake.toFixed(2), lod: g.lod, soul: this.soul(), dist: +g.ent.pos.distanceTo(this.ctx.player.object.position).toFixed(0) })); }
   act(kind: EntActKind, i = 0) { const g = this.guards[i]; if (!g) return false; const t = this.ctx.player.object.position.clone(); if (kind !== 'bless') { const e = g.ent; t.set(e.pos.x + Math.sin(e.yaw) * 11, 0, e.pos.z + Math.cos(e.yaw) * 11); t.y = this.ground(t.x, t.z); } return g.ent.start(kind, t); }
   walkTo(x: number, z: number, i = 0) { const g = this.guards[i]; if (!g) return; g.ent.rooted = false; g.ent.goal = new THREE.Vector3(x, 0, z); g.mode = 'walk'; g.pauseT = 1e9; }
   setSoul(v: number | null) { this.soulOverride = v; }

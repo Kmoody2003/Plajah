@@ -130,8 +130,12 @@ export function barkTube(curve: THREE.Curve<THREE.Vector3>, r0: number, r1: numb
   const pos: number[] = [], uvs: number[] = [], idx: number[] = [];
   const frames = curve.computeFrenetFrames(segs, false);
   const L = curve.getLength(), circ = Math.PI * 2 * (r0 + r1) / 2;
+  const fallbackN = new THREE.Vector3(1, 0, 0), fallbackB = new THREE.Vector3(0, 0, 1);
   for (let i = 0; i <= segs; i++) {
-    const t = i / segs, p = curve.getPoint(t), N = frames.normals[i], B = frames.binormals[i];
+    const t = i / segs, p = curve.getPoint(t);
+    const fn = frames.normals[i], fb = frames.binormals[i];
+    const N = Number.isFinite(fn.x) && Number.isFinite(fn.y) && Number.isFinite(fn.z) ? fn : fallbackN;
+    const B = Number.isFinite(fb.x) && Number.isFinite(fb.y) && Number.isFinite(fb.z) ? fb : fallbackB;
     const r = r0 + (r1 - r0) * Math.pow(t, 0.8);
     for (let j = 0; j <= radial; j++) {
       const a = (j / radial) * Math.PI * 2;

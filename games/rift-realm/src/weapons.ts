@@ -874,20 +874,28 @@ export class WeaponViewmodel {
 
   constructor() {
     this.trim = new THREE.MeshStandardNodeMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 1.2, roughness: 0.3 });
-    for (const id of VESSEL_ORDER) {
-      const m = buildWeapon(id, true);
-      m.root.visible = id === this.current;
-      this.models.set(id, m);
-      this.root.add(m.root);
-    }
     this.hands = { r: gripHand(this.trim), l: supportHand(this.trim) };
     this.root.add(this.hands.r, this.hands.l);
   }
 
-  model(id: VesselId = this.current) { return this.models.get(id)!; }
+  private ensure(id: VesselId): WeaponModel {
+    let m = this.models.get(id);
+    if (!m) {
+      m = buildWeapon(id, true);
+      m.root.visible = id === this.shown;
+      this.models.set(id, m);
+      this.root.add(m.root);
+    }
+    return m;
+  }
+
+  model(id: VesselId = this.current) { return this.ensure(id); }
   setTrim(hex: number) { this.trim.color.setHex(hex); this.trim.emissive.setHex(hex); }
-  /** The gun to show (the swap happens at the bottom of the switch). */
-  select(id: VesselId) { this.current = id; }
+  /** The gun to show (the swap happens at the bottom of the switch); builds lazily so unused vessels' weapon GLBs never load on boot. */
+  select(id: VesselId) {
+    this.current = id;
+    this.ensure(id);
+  }
 
   /** A shot: kick the springs (spec.recoil), flash the glow. */
   kick(spec: WeaponSpec, ads: number) {
@@ -908,11 +916,11 @@ export class WeaponViewmodel {
     const spec = o.spec, t = dt;
     // which gun is up: during a switch the old one lowers, the new one rises
     const want = o.sw >= 0 && o.sw < 0.5 ? this.shown : this.current;
-    if (want !== this.shown || !this.models.get(this.shown)!.root.visible) {
-      for (const [id, m] of this.models) m.root.visible = id === want;
+    const m = this.ensure(want);
+    if (want !== this.shown || !m.root.visible) {
+      for (const [id, wm] of this.models) wm.root.visible = id === want;
       this.shown = want;
     }
-    const m = this.models.get(this.shown)!;
     m.glow.value += (1 + o.pulse * 0.7 - m.glow.value) * Math.min(1, dt * 10);
 
     // springs (critically-damped-ish)

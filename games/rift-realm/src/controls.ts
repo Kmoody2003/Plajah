@@ -5,7 +5,24 @@ export interface InputState {
   lookDeltaX: number;
   lookDeltaY: number;
   jumpPressed: boolean;
+  /** Jump / swim up / glide held (A / Cross on controller). */
+  jumpHeld: boolean;
   dashPressed: boolean;
+  /** Retracting grapple hook pressed (LB on controller; E on keyboard). */
+  grapplePressed: boolean;
+  /** Pick up nearby world weapon / armor / item (D-pad Up on controller; H on keyboard). */
+  pickupPressed: boolean;
+  /** Open / close Armory & Loadouts (Hold View/Select on controller; L on keyboard). */
+  armoryTogglePressed: boolean;
+  /** Hot-swap next / previous custom loadout (LT + D-pad Right / Left; ] / [ on keyboard). */
+  loadoutNextPressed: boolean;
+  loadoutPrevPressed: boolean;
+  /** Pause / resume pressed (Menu / Start / Options on controller). */
+  pausePressed: boolean;
+  /** Spray Living Waters / Sow Pure Seeds / Gather Seeds ([U] on KB; LT + D-pad Up on controller; WATER/SEED on touch). */
+  restorePressed: boolean;
+  /** Summon / Command allied Grovewarden (LT + Y on controller; WARDEN on touch; Y on KB handled by wardens.ts). */
+  wardenPressed: boolean;
   firePressed: boolean;
   surgePressed: boolean;
   strikePressed: boolean;
@@ -19,18 +36,41 @@ export interface InputState {
   aimHeld: boolean;
   /** Melee pressed (right mouse): a light strike with a gun out, a heavy one in fists mode. */
   meleePressed: boolean;
-  /** Switch between gun and hand-to-hand (middle mouse / T / D-pad up). */
+  /** Switch between gun and hand-to-hand (middle mouse / 5 / D-pad right). */
   fistsPressed: boolean;
   /** Reload pressed (D-pad left; R on the keyboard is handled by the player). */
   reloadPressed: boolean;
   /** Crouch toggle pressed (D-pad down; C / Ctrl on the keyboard are handled by the player). */
   crouchPressed: boolean;
-  crouchHeld?: boolean;
+  /** Crouch / dive underwater / drop off cliff held (D-pad down on controller). */
+  crouchHeld: boolean;
   isTouchActive: boolean;
   /** The last aim input came from a controller stick (aim assist applies) rather than the mouse (raw aim). */
   padAim: boolean;
+  /** Whether any standard gamepad is currently connected. */
+  padConnected: boolean;
   /** Cursor aim (third person): where the mouse points over the game, normalised -1..1 (x right, y up), or null. */
   cursor: { x: number; y: number } | null;
+}
+
+/** Pick the first connected gamepad across any slot (Windows / Steam / Bluetooth pads often land on slot 1–3). */
+export function findActiveGamepad(pads: ArrayLike<Gamepad | null> | null | undefined): Gamepad | null {
+  if (!pads) return null;
+  for (let i = 0; i < pads.length; i++) {
+    const p = pads[i];
+    if (p && p.connected !== false) return p;
+  }
+  return null;
+}
+
+/** Radial deadzone + optional non-linear precision curve for analog sticks. */
+export function applyStickCurve(x: number, y: number, deadzone = 0.15, power = 1): [number, number] {
+  const mag = Math.hypot(x, y);
+  if (mag <= deadzone) return [0, 0];
+  const norm = Math.min(1, (mag - deadzone) / (1 - deadzone));
+  const curved = power === 1 ? norm : Math.pow(norm, power);
+  const scale = curved / mag;
+  return [x * scale, y * scale];
 }
 
 export class UnifiedControls {
@@ -75,8 +115,22 @@ export class UnifiedControls {
   private queuedMelee = false;
   private padAim = false;
   private queuedFists = false;
+  private queuedGrapple = false;
+  private queuedPickup = false;
+  private queuedArmory = false;
+  private queuedPause = false;
+  private queuedRestore = false;
+  private queuedWarden = false;
+  private queuedLoadoutPrev = false;
+  private queuedLoadoutNext = false;
+  private queuedCrouch = false;
+  private touchJumpHeld = false;
+  private touchCrouchHeld = false;
+  private touchFireHeld = false;
 
   private prevPadButtons: boolean[] = [];
+  private viewHoldT = 0;
+  private viewHoldFired = false;
   // hold to fire: while the left button / right trigger is held, a shot repeats on every eighth note of the
   // 124 BPM pulse (the press itself fires the first one), so holding keeps you in rhythm
   private fireHeld = false;
@@ -85,20 +139,38 @@ export class UnifiedControls {
   private static readonly REPEAT = 60 / 124 / 2;
   isTouchDevice = false;
 
+  /** Trigger dual-rumble haptic feedback on the active controller when supported by the browser. */
+  rumble(strong = 0.35, weak = 0.25, duration = 90) {
+    try {
+      const pad = findActiveGamepad(navigator.getGamepads?.());
+      const act = (pad as (Gamepad & { vibrationActuator?: { playEffect?: (t: string, p: Record<string, number>) => Promise<unknown> } }) | null)?.vibrationActuator;
+      if (act?.playEffect) {
+        void act.playEffect('dual-rumble', {
+          startDelay: 0,
+          duration,
+          strongMagnitude: Math.max(0, Math.min(1, strong)),
+          weakMagnitude: Math.max(0, Math.min(1, weak)),
+        });
+      }
+    } catch { /* browser / pad without rumble */ }
+  }
+
   private stickBaseEl = document.getElementById('touchStickBase');
   private stickKnobEl = document.getElementById('touchStickKnob');
 
   constructor(private surface: HTMLElement) {
-    // Touch mode only when touch is the main pointer (phones, tablets). Windows reports maxTouchPoints = 10 on
-    // ordinary mouse-and-keyboard PCs, which used to drop desktop players into touch mode: no pointer lock,
-    // so the mouse could neither look nor fire. A real touch on the screen still switches to touch mode.
-    this.isTouchDevice = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
+    // Touch mode on mobile/Android/tablets (or ?touch=1 to preview touch controls on desktop).
+    // Windows reports maxTouchPoints = 10 on desktop PCs, so only auto-enable when coarse pointer or mobile UA.
+    const forceTouch = typeof location !== 'undefined' && new URLSearchParams(location.search).get('touch') === '1';
+    const isMobileUa = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent ?? '');
+    this.isTouchDevice = forceTouch || isMobileUa || (matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches);
 
     this.bindTouchSurface();
     this.bindTouchButtons();
     this.bindMouseFallback();
     // Tab (and middle mouse, below) toggles the lock-on
     window.addEventListener('keydown', (e) => { if (e.code === 'Tab') { e.preventDefault(); if (!e.repeat) this.queuedLock = true; } });
+    window.addEventListener('keydown', (e) => { if (e.code === 'KeyU' && !e.repeat) this.queuedRestore = true; });
     // Z holds aim down sights; T switches gun / fists (middle mouse does too)
     // gun <-> fists is 5 / middle mouse (input/actions.ts); T belongs to Pray now
     window.addEventListener('keydown', (e) => { if (e.code === 'KeyZ') this.aimHeld = true; });
@@ -247,23 +319,43 @@ export class UnifiedControls {
         cb();
       });
     };
+    const bindHold = (id: string, onDown: () => void, onUp: () => void) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const start = (e: Event) => { e.preventDefault(); e.stopPropagation(); this.isTouchDevice = true; onDown(); };
+      const end = (e: Event) => { e.stopPropagation(); onUp(); };
+      el.addEventListener('pointerdown', start);
+      el.addEventListener('pointerup', end);
+      el.addEventListener('pointercancel', end);
+      el.addEventListener('pointerleave', end);
+    };
 
-    bindBtn('btnFire', () => { this.queuedFire = true; });
+    // Holdable Fire (beat-synced auto-fire), Jump (swim up / glide), Crouch (dive / drop cliff), Guard & Pick Up/Eat
+    bindHold('btnFire', () => { this.touchFireHeld = true; this.fireRepeat = UnifiedControls.REPEAT; this.queuedFire = true; }, () => { this.touchFireHeld = false; });
+    bindHold('btnJump', () => { this.touchJumpHeld = true; this.queuedJump = true; }, () => { this.touchJumpHeld = false; });
+    bindHold('btnCrouch', () => { this.touchCrouchHeld = true; this.queuedCrouch = true; }, () => { this.touchCrouchHeld = false; });
+    bindHold('btnPickup', () => {
+      this.queuedPickup = true;
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyH', bubbles: true }));
+    }, () => {
+      window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyH', bubbles: true }));
+    });
+    bindHold('btnGuard', () => { window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX', bubbles: true })); }, () => { window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyX', bubbles: true })); });
+
     bindBtn('btnDash', () => { this.queuedDash = true; });
+    bindBtn('btnGrapple', () => { this.queuedGrapple = true; });
     bindBtn('btnSurge', () => { this.queuedSurge = true; });
     bindBtn('btnStrike', () => { this.queuedStrike = true; });
-    bindBtn('btnJump', () => { this.queuedJump = true; });
     bindBtn('btnView', () => { this.queuedToggleView = true; });
+    bindBtn('btnPause', () => { this.queuedPause = true; });
+    bindBtn('btnArmory', () => { this.queuedArmory = true; });
+    bindBtn('btnRestore', () => { this.queuedRestore = true; });
+    bindBtn('btnWarden', () => { this.queuedWarden = true; });
+    bindBtn('btnLoadoutPrev', () => { this.queuedLoadoutPrev = true; });
+    bindBtn('btnLoadoutNext', () => { this.queuedLoadoutNext = true; });
     bindBtn('btnLock', () => { this.queuedLock = true; });
     bindBtn('btnFists', () => { this.queuedFists = true; });
     bindBtn('btnReload', () => { window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyR', bubbles: true })); window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyR', bubbles: true })); });
-    // guard is a hold: the combat code reads the X key while it's down
-    const guard = document.getElementById('btnGuard');
-    if (guard) {
-      const down = (e: Event) => { e.preventDefault(); window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX', bubbles: true })); };
-      const up = () => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyX', bubbles: true }));
-      guard.addEventListener('pointerdown', down); guard.addEventListener('pointerup', up); guard.addEventListener('pointercancel', up); guard.addEventListener('pointerleave', up);
-    }
   }
 
   poll(dt: number): InputState {
@@ -296,7 +388,11 @@ export class UnifiedControls {
     this.queuedMelee = false; this.queuedFists = false;
     let lockHeld = false;
     let aimHeld = this.aimHeld;
-    let reloadPressed = false, crouchPressed = false;
+    let reloadPressed = false, crouchPressed = this.queuedCrouch, crouchHeld = this.touchCrouchHeld;
+    let jumpHeld = this.touchJumpHeld, grapplePressed = this.queuedGrapple, pickupPressed = this.queuedPickup;
+    let armoryTogglePressed = this.queuedArmory, loadoutNextPressed = this.queuedLoadoutNext, loadoutPrevPressed = this.queuedLoadoutPrev, pausePressed = this.queuedPause;
+    let restorePressed = this.queuedRestore, wardenPressed = this.queuedWarden;
+    let padConnected = false;
 
     this.queuedJump = false;
     this.queuedDash = false;
@@ -306,44 +402,89 @@ export class UnifiedControls {
     this.queuedToggleView = false;
     this.queuedCycleVessel = false;
     this.queuedLock = false;
+    this.queuedGrapple = false;
+    this.queuedPickup = false;
+    this.queuedArmory = false;
+    this.queuedPause = false;
+    this.queuedRestore = false;
+    this.queuedWarden = false;
+    this.queuedLoadoutPrev = false;
+    this.queuedLoadoutNext = false;
+    this.queuedCrouch = false;
 
-    let held = this.fireHeld;
-    // Poll standard Gamepad API
-    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    const pad = pads?.[0];
+    let held = this.fireHeld || this.touchFireHeld;
+    // Poll standard Gamepad API (supports any connected slot 0–3)
+    const pad = findActiveGamepad(navigator.getGamepads ? navigator.getGamepads() : []);
     if (pad) {
-      const dead = (v: number) => (Math.abs(v) < 0.16 ? 0 : v);
-      const lx = dead(pad.axes[0] ?? 0);
-      const ly = dead(pad.axes[1] ?? 0);
-      const rx = dead(pad.axes[2] ?? 0);
-      const ry = dead(pad.axes[3] ?? 0);
+      padConnected = true;
+      const [lx, ly] = applyStickCurve(pad.axes[0] ?? 0, pad.axes[1] ?? 0, 0.15, 1.15);
+      const [rx, ry] = applyStickCurve(pad.axes[2] ?? 0, pad.axes[3] ?? 0, 0.14, 1.65);
 
       if (Math.abs(lx) > Math.abs(moveX)) moveX = lx;
       if (Math.abs(ly) > Math.abs(moveY)) moveY = -ly;
-      lookDeltaX += rx * 1100 * dt;
-      lookDeltaY += ry * 850 * dt;
+      lookDeltaX += rx * 1180 * dt;
+      lookDeltaY += ry * 880 * dt;
       if (rx || ry || lx || ly) this.padAim = true;
 
+      const isDown = (idx: number) => Boolean(pad.buttons[idx]?.pressed || (pad.buttons[idx]?.value ?? 0) > 0.45);
       const edge = (idx: number) => {
-        const down = Boolean(pad.buttons[idx]?.pressed || (pad.buttons[idx]?.value ?? 0) > 0.45);
+        const down = isDown(idx);
         const was = this.prevPadButtons[idx] ?? false;
         this.prevPadButtons[idx] = down;
+        if (down && !was) this.padAim = true;
         return down && !was;
       };
 
-      if (edge(0)) jumpPressed = true;          // A / Cross
-      if (edge(7)) { firePressed = true; this.fireRepeat = UnifiedControls.REPEAT; } // RT
-      if ((pad.buttons[7]?.value ?? 0) > 0.45) held = true;
-      if (edge(2)) strikePressed = true;        // X / Square (Melee Strike / Finisher)
-      if (edge(1) || edge(4)) dashPressed = true; // B / Circle or LB
-      if (edge(3)) surgePressed = true;          // Y / Triangle
+      jumpHeld = isDown(0);
+      crouchHeld = isDown(13);
       edge(6);
-      if ((pad.buttons[6]?.value ?? 0) > 0.45) { lockHeld = true; aimHeld = true; } // LT: aim down sights + lock on
-      if (edge(5)) cycleVesselPressed = true;    // RB
-      if (edge(14)) reloadPressed = true;         // D-pad left
-      if (edge(13)) crouchPressed = true;         // D-pad down
-      if (edge(15)) fistsPressed = true;          // D-pad right: gun <-> hand-to-hand (D-pad up is eat)
-      if (edge(8) || edge(11)) toggleViewPressed = true; // Select / R3
+      if (isDown(6)) { lockHeld = true; aimHeld = true; } // LT: Aim Down Sights + Lock-On (+ chords below)
+      if (edge(0)) jumpPressed = true;            // A / Cross: Jump / Double Jump / Swim Up / Wall-Kick / Slingshot
+      if (edge(7)) { firePressed = true; this.fireRepeat = UnifiedControls.REPEAT; } // RT: Fire
+      if (isDown(7)) held = true;
+      if (edge(2)) strikePressed = true;          // X / Square: Melee Strike / Finisher (hold: Heavy)
+      if (edge(1)) dashPressed = true;            // B / Circle: Dash / Swim Surge
+      if (edge(4)) grapplePressed = true;         // LB: Retracting Grappling Hook (Stalker / Sylva)
+      if (edge(3)) {
+        if (aimHeld) wardenPressed = true;        // LT + Y: Summon / Assist Sworn Friend Grovewarden
+        else surgePressed = true;                 // Y / Triangle: Soul Surge
+      }
+      if (edge(5)) cycleVesselPressed = true;     // RB: Cycle Soul Vessel (Free Roam)
+      if (edge(12)) {
+        if (aimHeld) restorePressed = true;       // LT + D-pad Up: Spray Living Waters / Sow Pure Seeds
+        else pickupPressed = true;                // D-pad Up: Pick up World Gear (or Forage / Hold Eat)
+      }
+      if (edge(13)) crouchPressed = true;         // D-pad Down: Crouch (tap) / Dive & Cliff Drop (hold)
+      if (edge(14)) {
+        if (aimHeld) loadoutPrevPressed = true;   // LT + D-pad Left: Previous Loadout
+        else reloadPressed = true;                // D-pad Left: Reload / Vent
+      }
+      if (edge(15)) {
+        if (aimHeld) loadoutNextPressed = true;   // LT + D-pad Right: Next Loadout
+        else fistsPressed = true;                 // D-pad Right: Gun <-> Fists
+      }
+      if (edge(9)) pausePressed = true;           // Menu / Start / Options: Pause / Resume
+
+      // View / Select (button 8): short tap = 1st / 3rd person; hold (>= 0.32s) = Armory & Loadouts
+      // (Button 11 / R3 is exclusively Guard / Parry — never hijacks camera view.)
+      const viewDown = isDown(8);
+      const viewWas = this.prevPadButtons[8] ?? false;
+      this.prevPadButtons[8] = viewDown;
+      if (viewDown) {
+        this.padAim = true;
+        this.viewHoldT += dt;
+        if (this.viewHoldT >= 0.32 && !this.viewHoldFired) {
+          this.viewHoldFired = true;
+          armoryTogglePressed = true;
+        }
+      } else {
+        if (viewWas && !this.viewHoldFired) toggleViewPressed = true;
+        this.viewHoldT = 0;
+        this.viewHoldFired = false;
+      }
+    } else {
+      this.viewHoldT = 0;
+      this.viewHoldFired = false;
     }
 
     if (held) {
@@ -357,7 +498,16 @@ export class UnifiedControls {
       lookDeltaX,
       lookDeltaY,
       jumpPressed,
+      jumpHeld,
       dashPressed,
+      grapplePressed,
+      pickupPressed,
+      armoryTogglePressed,
+      loadoutNextPressed,
+      loadoutPrevPressed,
+      pausePressed,
+      restorePressed,
+      wardenPressed,
       firePressed,
       surgePressed,
       strikePressed,
@@ -370,8 +520,10 @@ export class UnifiedControls {
       fistsPressed,
       reloadPressed,
       crouchPressed,
+      crouchHeld,
       isTouchActive: this.isTouchDevice,
       padAim: this.padAim || this.isTouchDevice,
+      padConnected,
       cursor: this.cursorNdc(),
     };
   }

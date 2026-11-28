@@ -75,6 +75,17 @@ export const MODES: ModeDef[] = [
     needs: { spawns: 1, anchors: 4, objectives: 0, bounds: true }, autoWaves: true, domination: false, scripted: false },
 ];
 export const modeById = (id: string | null | undefined) => MODES.find((m) => m.id === id);
+
+/** Mid-game character (Soul Vessel) switching is only permitted in unstructured Free Roam (`explore`), never during Campaign, Survival, Trials, Boss Hunt, or Studio-ruled runs. */
+export function isVesselSwitchAllowed(opts: {
+  modeId: ModeId | null | undefined;
+  modeRunning?: boolean;
+  inCampaign?: boolean;
+  ruled?: boolean;
+}): boolean {
+  if (opts.inCampaign || opts.ruled || opts.modeRunning) return false;
+  return !opts.modeId || opts.modeId === 'explore';
+}
 /** ?trials=<old name> from before the registry. */
 const LEGACY: Record<string, ModeId> = { gauntlet: 'trials', survival: 'survival', duel: 'boss' };
 

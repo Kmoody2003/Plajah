@@ -12,7 +12,7 @@ import './menu.css';
 import { CHARS, MAPS, statsFor, type CharCard, type MapCard } from './content';
 import { Pedestal } from './pedestal';
 import { installFastCompile } from './fastCompile';
-import { preloadCharacters } from '../characters';
+import { preloadCharacters, preloadVessel } from '../characters';
 import { getKTX2, initKTX2, preloadSets } from '../textures';
 import { moduleByParam, type LevelModule } from '../studio/levelModules';
 import { RhythmEngine } from '../rhythm';
@@ -61,6 +61,8 @@ export const prefetch = {
     return j ?? Promise.all([preloadSets(mod.sets), mod.preload?.()]).then(() => undefined);
   },
   characters(): Promise<void> { return (charJob ??= preloadCharacters()); },
+  /** Load ONLY the active playable vessel during fast boot (~16 MB instead of ~81 MB). */
+  vessel(vesselId: VesselId): Promise<void> { return preloadVessel(vesselId).then(() => undefined); },
   /** Warm the HTTP cache with every file this level fetched last time it loaded (models, maps, clips, audio). */
   files(param: string) {
     let list: string[] = [];

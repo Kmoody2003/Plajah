@@ -9,12 +9,12 @@ import { Objectives } from './objectives';
 import { applyStudioProject } from './studio/projectHook';
 import { createRules } from './studio/rulesHost';
 import { createPost } from './post';
-import { DynamicResolution, EmptyInstanceSkip, HeavyMeshLod, capShadowMaps, intelShadows, pickGfx } from './gfx';
+import { DynamicResolution, EmptyInstanceSkip, HeavyMeshLod, capShadowMaps, cappedPixelRatio, intelShadows, isMobileClient, pickGfx } from './gfx';
 import { syncLeafLight } from '../../../services/vegetation/trees/material';
 import { createPlaykitPostPipeline } from '../../../playkit/render/unifiedPost';
 import { wetten } from './wetness';
 import { JumpPads } from './jumpPads';
-import { ModeRunner, resolveMode } from './modes';
+import { ModeRunner, isVesselSwitchAllowed, resolveMode } from './modes';
 import { describeArena } from './modes/arena';
 import { showModeResult } from './modes/result';
 import { Portals, travelTo } from './portals';
@@ -28,13 +28,14 @@ import { LoadScreen } from './menu/loadProgress';
 import { CHARS, MAPS } from './menu/content';
 import { compileEverything, compileStats, installFastCompile, warmFrame } from './menu/fastCompile';
 import { PlayerController } from './player';
+import { trickleRemainingVessels } from './characters';
 import { EnemyManager, enemyNav } from './enemies';
 import { VESSEL_ORDER, VESSELS, type VesselId } from './vessels';
 import { Tracers, recipe } from './weapons';
 import { GrappleHook } from './grapple';
 import { sampleWaterAt } from './waterPhysics';
 import { WorldArmory } from './loadouts';
-import { UnifiedControls } from './controls';
+import { UnifiedControls, findActiveGamepad } from './controls';
 import { Targeting } from './targeting';
 import { createDanger } from './danger';
 import { createEnts } from './ents';
@@ -43,7 +44,7 @@ import { COMBAT, DEFAULT_TUNING, applyCombatTuning, initCombatTuning, resetComba
 import { PlajahGamesBridge } from './plajahBridge';
 import { VfxSystem, HIT_SPARKS, HIT_PERFECT, KILL_BURST, SHADOW_BURST, SLASH, SLASH_PERFECT, SLASH_SHADOW, BLADE_TRAIL, STREAK_TRAIL } from '../../../services/vfx';
 import { wireRemap } from './input/actions';
-import { openControls } from './menu/controlsPanel';
+import { openControls, closeControls, controlsOpen } from './menu/controlsPanel';
 
 interface SurgeWave {
   mesh: THREE.Mesh;
@@ -58,6 +59,19 @@ async function boot() {
   const beatPop = document.getElementById('beatPop')!;
   const hpText = document.getElementById('hpText')!;
   const hpBar = document.getElementById('hpBar')!;
+  const hpBarWrap = document.getElementById('hpBarWrap');
+  const lowHpVignette = document.getElementById('lowHpVignette');
+  const lowHpBanner = document.getElementById('lowHpBanner');
+  const forestHud = document.getElementById('forestHud');
+  const fhState = document.getElementById('fhState');
+  const fhPct = document.getElementById('fhPct');
+  const fhBar = document.getElementById('fhBar');
+  const fhWater = document.getElementById('fhWater');
+  const fhSeeds = document.getElementById('fhSeeds');
+  const fhAllies = document.getElementById('fhAllies');
+  const fhNote = document.getElementById('fhNote');
+  let lastForestHudKey = '';
+  let lastLowHpText = '';
   const resText = document.getElementById('resText')!;
   const resBar = document.getElementById('resBar')!;
   const scoreText = document.getElementById('scoreText')!;
@@ -68,7 +82,8 @@ async function boot() {
   // spirit charge + heat meters bottom-right (the vessel weapons are spirit-charged: no magazines); the label shows
   // OVERHEATED / VENTING / SPIRIT DRAINED
   const ammoEl = document.createElement('div');
-  ammoEl.style.cssText = 'position:fixed;right:24px;bottom:56px;z-index:12;pointer-events:none;width:230px;font:800 12px/1 system-ui,sans-serif;letter-spacing:.14em;color:#e2f3ff;text-shadow:0 2px 6px #000;text-align:right';
+  ammoEl.id = 'rrAmmo';
+  ammoEl.style.cssText = 'position:fixed;right:var(--hud-edge-r, 24px);bottom:calc(var(--hud-bot, 12px) + 46px);z-index:12;pointer-events:none;width:230px;font:800 12px/1 system-ui,sans-serif;letter-spacing:.14em;color:#e2f3ff;text-shadow:0 2px 6px #000;text-align:right';
   ammoEl.innerHTML = '<div data-l style="margin-bottom:6px"></div>'
     + '<div style="height:9px;background:#0b1626cc;border:1px solid #38bdf866;margin-bottom:4px"><div data-c style="height:100%;width:100%;background:linear-gradient(90deg,#0ea5e9,#a5f3fc);box-shadow:0 0 8px #38bdf8"></div></div>'
     + '<div style="height:5px;background:#1a0d08cc;border:1px solid #fb923c55"><div data-h style="height:100%;width:0;background:linear-gradient(90deg,#fbbf24,#f97316,#ef4444);box-shadow:0 0 6px #f97316"></div></div>';
@@ -129,9 +144,8 @@ async function boot() {
   // one table of levels (studio/levelModules.ts), shared with the Game Studio
   const levelModule = moduleByParam(levelId);
   await loading.stage('assets');
-  // the menus already started these (menu.ts prefetch); the same promises, so nothing loads twice
-  prefetch.files(levelId);
-  await Promise.all([prefetch.level(levelModule), prefetch.characters()]);
+  // Stream ONLY the chosen map + active vessel during boot (other vessels & distant GLBs stream gently after spawn)
+  await Promise.all([prefetch.level(levelModule), prefetch.vessel(pickChar.id)]);
   await loading.stage('world');
   const arena = levelModule.build(scene, tier);
   if (gfx.shadowMapMax && gfx.shadowMapMax < 4096) capShadowMaps(scene, gfx.shadowMapMax);
@@ -142,10 +156,9 @@ async function boot() {
   // heavy static meshes (place models ~60k tris) get simplified LODs by screen size (gfx.ts); ?lod=0 turns it off
   const heavyLod = new URLSearchParams(location.search).get('lod') === '0' ? null : new HeavyMeshLod(scene, camera);
   if (shadowRig) console.info(`[gfx] shadows: ${shadowRig.casters} casters added, key light ${shadowRig.light.shadow.mapSize.x}`);
-  // wet forest: damp surfaces, glossy wet patches, puddle shine (?dry turns it off); models that stream in later get it too
+  // wet forest: damp surfaces, glossy wet patches, puddle shine (?dry turns it off); run ONCE before prepare() so shaders compile on the loading screen without mid-play stutters
   if (!new URLSearchParams(location.search).has('dry')) {
     wetten(arena.group);
-    for (const ms of [3000, 8000, 20000]) window.setTimeout(() => wetten(arena.group), ms);
   }
   await loading.stage('prepare');
   await arena.prepare?.(renderer, camera);
@@ -202,14 +215,14 @@ async function boot() {
   });
 
   await loading.stage('characters');
-  await prefetch.characters();
+  await prefetch.vessel(pickChar.id);
   const player = new PlayerController(camera, renderer.domElement);
   player.world = collision;
   player.spawnAt(arena.spawns.a.pos, arena.spawns.a.yaw);
   scene.add(player.object);
-  if (choice) player.setVessel(choice.vessel); // the vessel picked on the character screen
-  else { const v = new URLSearchParams(location.search).get('vessel'); if (v && v in VESSELS) player.setVessel(v as VesselId); } // carried through a hub portal
-  if (camp?.campaign.vessel) player.setVessel(camp.campaign.vessel); // a campaign is played as its own vessel
+  if (choice) player.setVessel(choice.vessel, true); // the vessel picked on the character screen
+  else { const v = new URLSearchParams(location.search).get('vessel'); if (v && v in VESSELS) player.setVessel(v as VesselId, true); } // carried through a hub portal
+  if (camp?.campaign.vessel) player.setVessel(camp.campaign.vessel, true); // a campaign is played as its own vessel
 
   // a Studio level with rules decides who arrives and how the level ends (studio/rulesHost.ts); else the endless trials run
   const ruled = !!studioLook?.level.rules.some(r => r.enabled);
@@ -314,14 +327,16 @@ async function boot() {
   const blade = vfx.trail(BLADE_TRAIL), dashTrail = vfx.trail(STREAK_TRAIL);
   const bladeA = new THREE.Vector3(), bladeB = new THREE.Vector3(), dashP = new THREE.Vector3();
   let bladeT = 0, dashT = 0, strikeFlip = false;
+  let armoryRef: WorldArmory | null = null;
+  let wasEnabledBeforeArmory = false;
   // A dangerous world (danger/*, Elderwood + the Wilds): predators that hunt you and the rift's creatures, environment
   // hazards with status effects, night danger. Predators join the shot raycast, melee, Soul Surge and the lock-on list.
   const danger = createDanger({
     scene, camera, collision, vfx, player, enemies, level: levelId, lo: tier === 'low',
     beat: () => rhythm.beatIndex, pulse: () => rhythm.pulse, phase: () => rhythm.phase,
-    busy: () => melee.busy || melee.blocking, // no eating mid-strike / while blocking
+    busy: () => melee.busy || melee.blocking || Boolean(armoryRef?.nearbyPickup || armoryRef?.isOpen), // no eating while picking up gear / armory open
     addResonance: (n) => { resonance = Math.min(4.0, resonance + n); showBeatFeedback(`RESONANCE +${n.toFixed(1)}`, '#b36aff'); },
-    hurt: (dmg) => { if (player.downed) return; startMatch(); player.hp = Math.max(0, player.hp - dmg); if (player.hp === 0) downPlayer(match.on); else player.takeHit(dmg); },
+    hurt: (dmg) => { if (player.downed) return; startMatch(); player.hp = Math.max(0, player.hp - dmg); controls.rumble(0.65, 0.4, 140); if (player.hp === 0) downPlayer(match.on); else player.takeHit(dmg); },
     say: (t, c) => showBeatFeedback(t, c),
     onKill: (xp, name) => { score += Math.round(xp * 4 * resonance); plajah.creditXp(Math.round(xp * resonance), enemies.wave); plajah.unlock('rift_realm_first_blood'); showBeatFeedback(`${name.toUpperCase()} DOWN · +${xp} XP`, '#ffb366'); },
   });
@@ -331,7 +346,7 @@ async function boot() {
   const ents = createEnts({
     scene, camera, collision, vfx, player, enemies, danger, level: levelId, lo: tier === 'low',
     sound: (k, g, pan) => rhythm.playEnt(k, g, pan),
-    hurt: (dmg) => { if (player.downed) return; startMatch(); player.hp = Math.max(0, player.hp - dmg); if (player.hp === 0) downPlayer(match.on); else player.takeHit(dmg); },
+    hurt: (dmg) => { if (player.downed) return; startMatch(); player.hp = Math.max(0, player.hp - dmg); controls.rumble(0.8, 0.55, 190); if (player.hp === 0) downPlayer(match.on); else player.takeHit(dmg); },
     say: (t, c) => showBeatFeedback(t, c),
   });
   if (ents) await ents.prepare(renderer, camera);
@@ -365,6 +380,7 @@ async function boot() {
 
   const grapple = new GrappleHook(scene);
   let lastGrappleHint = 0;
+  let lastPadUi = false;
   player.onGrapple = () => {
     if (!player.enabled || player.downed) return;
     const { origin, dir } = player.getAimRay();
@@ -372,6 +388,7 @@ async function boot() {
     if (res === 'fired') {
       vfx.spawn(vfx.recipes.grapple_latch, grapple.anchor, { dir: [grapple.normal.x, grapple.normal.y, grapple.normal.z], tint: player.vessel.grapple!.color });
       rhythm.playDash(true);
+      controls.rumble(0.55, 0.45, 115);
       showBeatFeedback(`${player.vessel.grapple!.label} LATCHED`, `#${player.vessel.grapple!.color.toString(16).padStart(6, '0')}`);
     } else if (res === 'detached') {
       player.setGrapplePull(false);
@@ -379,7 +396,8 @@ async function boot() {
       const now = performance.now();
       if (now - lastGrappleHint > 2400) {
         lastGrappleHint = now;
-        showBeatFeedback(`NO GRAPPLE ON ${player.vessel.name.toUpperCase()} · USE [2] STALKER OR [6] SYLVA`, '#94a3b8');
+        const hint = lastPadUi ? 'RB TO STALKER OR SYLVA' : 'USE [2] STALKER OR [6] SYLVA';
+        showBeatFeedback(`NO GRAPPLE ON ${player.vessel.name.toUpperCase()} · ${hint}`, '#94a3b8');
       }
     } else if (res === 'no_target') {
       const now = performance.now();
@@ -389,27 +407,49 @@ async function boot() {
       }
     }
   };
-  player.onGrappleSlingshot = () => { grapple.cancel(true); rhythm.playDash(true); };
+  player.onGrappleSlingshot = () => { grapple.cancel(true); rhythm.playDash(true); controls.rumble(0.42, 0.35, 95); };
   player.onDoubleJump = (pos) => {
     vfx.spawn(vfx.recipes.double_jump, pos, { dir: [0, 1, 0], tint: player.loadoutStats.accentColor ?? player.vessel.primaryColor });
     rhythm.playDash(true);
+    controls.rumble(0.24, 0.2, 65);
   };
   player.onWaterSplash = (pos, strength) => {
     vfx.spawn(vfx.recipes.water_splash, pos, { dir: [0, 1, 0], scale: Math.max(0.6, Math.min(2.0, strength)) });
+    controls.rumble(Math.min(0.6, 0.16 + strength * 0.18), 0.22, 80);
   };
   player.onDrownTick = (dmg) => {
     if (player.downed) return;
     player.hp = Math.max(0, player.hp - dmg);
+    controls.rumble(0.5, 0.3, 120);
     showBeatFeedback(`OUT OF AIR -${dmg}`, '#38bdf8');
     if (player.hp === 0) downPlayer(match.on);
   };
-  player.onClimbMantle = () => { rhythm.playDash(false); };
+  player.onClimbMantle = () => { rhythm.playDash(false); controls.rumble(0.25, 0.18, 70); };
+
+  const allowVesselSwitch = () => isVesselSwitchAllowed({
+    modeId: mode?.id ?? null,
+    modeRunning: Boolean(modes?.running),
+    inCampaign: Boolean(camp),
+    ruled,
+  });
+  const activeModeLabel = () => (camp ? 'Campaign' : ruled ? 'Custom Rules' : modes?.running && modes.mode ? modes.mode.name : mode?.name ?? 'Free Roam');
+  let lastVesselLockWarn = 0;
+  player.canSwitchVessel = allowVesselSwitch;
+  player.onVesselSwitchBlocked = () => {
+    const now = performance.now();
+    if (now - lastVesselLockWarn < 1800) return;
+    lastVesselLockWarn = now;
+    showBeatFeedback(`CHARACTER LOCKED IN ${activeModeLabel().toUpperCase()} · SWITCH IN FREE ROAM`, '#d9b26a');
+  };
 
   let galeHasteT = 0;
   const armory = new WorldArmory({
     scene,
     wilds: isWilds,
     ground: (x, z) => collision.terrain ? collision.terrain.heightAt(x, z, 1e4) : (collision.groundAt(x, z, 80, 200) ?? 0),
+    canSwitchVessel: allowVesselSwitch,
+    currentVessel: () => player.vessel.id,
+    modeName: activeModeLabel,
     onApply: (preset, stats) => {
       player.applyLoadout(preset, stats);
       updateVesselUI(player.vessel.id);
@@ -419,15 +459,28 @@ async function boot() {
       else if (effect === 'charge') { player.weapons.addCharge(60, 'spirit_cell'); resonance = Math.min(4.0, resonance + 1.0); }
       else if (effect === 'haste') { galeHasteT = 20; }
       rhythm.playSurge();
+      controls.rumble(0.4, 0.35, 110);
     },
     say: (t, c) => showBeatFeedback(t, c),
+    onToggle: (open) => {
+      if (open) {
+        wasEnabledBeforeArmory = player.enabled;
+        player.enabled = false;
+      } else if (wasEnabledBeforeArmory && overlay.classList.contains('hidden')) {
+        player.enabled = true;
+      }
+    },
   });
+  armoryRef = armory;
   // Pick up nearby glowing world weapons / armor / items on H before danger/eat handles foraging
   window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyH' && !e.repeat && player.enabled && !player.downed && armory.nearbyPickup) {
       if (armory.tryPickup()) { e.stopImmediatePropagation(); rhythm.playDash(true); }
     }
   }, true);
+  window.addEventListener('gamepadconnected', () => {
+    showBeatFeedback('CONTROLLER READY · LB GRAPPLE · LT+D-◀▶ LOADOUT · HOLD VIEW ARMORY', '#d9b26a');
+  });
 
   // Underwater tint vignette & compact Traversal HUD (Grapple lock, Swimming current / Breath, Climbing grip)
   const uwOverlay = document.createElement('div');
@@ -437,8 +490,13 @@ async function boot() {
   document.body.append(uwOverlay, travHud);
   let lastTravHtml = '';
 
+  const btnGrappleEl = document.getElementById('btnGrapple');
+  const btnPickupEl = document.getElementById('btnPickup');
+  let lastTouchGrappleState = '';
+  let lastTouchPickupState = '';
   if (controls.isTouchDevice) {
     touchHud.classList.add('on');
+    document.body.classList.add('rr-touch');
   }
 
   function showBeatFeedback(label: string, color: string) {
@@ -446,7 +504,7 @@ async function boot() {
     beatPop.style.color = color;
     beatPop.style.opacity = '1';
     window.clearTimeout(popTimeout);
-    popTimeout = window.setTimeout(() => { beatPop.style.opacity = '0'; }, 380);
+    popTimeout = window.setTimeout(() => { beatPop.style.opacity = '0'; }, label.length > 22 ? 1900 : 480);
   }
 
   // The beat is a bonus, never a requirement (Kenne): an on-beat action earns a callout and extra power; an off-beat one
@@ -659,7 +717,8 @@ async function boot() {
   updateVesselUI(player.vessel.id);
 
   player.onToggleView = (fp) => {
-    camText.textContent = fp ? '1ST PERSON [V]' : '3RD PERSON [V]';
+    const k = lastPadUi ? 'VIEW' : 'V';
+    camText.textContent = fp ? `1ST PERSON [${k}]` : `3RD PERSON [${k}]`;
   };
 
   player.onDash = () => {
@@ -767,11 +826,13 @@ async function boot() {
     rhythm.setMood('explore');
     rhythm.start();
     applyVolume(rhythm); // the menus' volume setting
-    if (fromTouch || controls.isTouchDevice || window.matchMedia('(pointer: coarse)').matches) {
+    const coarseOnly = window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(any-pointer: fine)').matches;
+    if (fromTouch || controls.isTouchDevice || coarseOnly) {
       controls.isTouchDevice = true;
       player.enabled = true;
       overlay.classList.add('hidden');
       touchHud.classList.add('on');
+      document.body.classList.add('rr-touch');
     } else {
       // A refused pointer lock (embedded views, some browsers) must never block play: drag-look takes over.
       const enterUnlocked = () => { player.enabled = true; overlay.classList.add('hidden'); };
@@ -808,11 +869,23 @@ async function boot() {
     overlay.classList.remove('hidden');
   });
 
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
+  const applyResize = () => {
+    const w = window.innerWidth, h = window.innerHeight;
+    camera.aspect = w / Math.max(1, h);
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
+    const mobileNow = isMobileClient();
+    const nextPr = gfx.profile === 'low'
+      ? 0.7
+      : mobileNow
+        ? cappedPixelRatio(w, h, window.devicePixelRatio, 1_550_000, 1.25)
+        : gfx.profile === 'high'
+          ? cappedPixelRatio(w, h, window.devicePixelRatio, 4_800_000, 2)
+          : cappedPixelRatio(w, h, window.devicePixelRatio, 2_600_000, 1.5);
+    renderer.setPixelRatio(nextPr);
+    renderer.setSize(w, h);
+  };
+  window.addEventListener('resize', applyResize);
+  window.addEventListener('orientationchange', () => window.setTimeout(applyResize, 120));
 
   let last = performance.now();
   let trapDamageCooldown = 0;
@@ -832,6 +905,65 @@ async function boot() {
       else player.playClip('get_up', 1);
     });
   }
+  const hudBottomEl = document.getElementById('hudBottom');
+  const vesselBarEl = document.querySelector<HTMLElement>('.vessel-bar');
+  const pauseMetaEl = document.getElementById('pauseMeta');
+  const pauseStatusEl = document.getElementById('pauseStatus');
+  const pauseTabPad = document.getElementById('pauseTabPad');
+  const pauseTabKbm = document.getElementById('pauseTabKbm');
+  const pauseGuidePad = document.getElementById('pauseGuidePad');
+  const pauseGuideKbm = document.getElementById('pauseGuideKbm');
+  const pauseVesselRowPad = document.getElementById('pauseVesselRowPad');
+  const pauseVesselRowKbm = document.getElementById('pauseVesselRowKbm');
+  let pauseGuideTab: 'pad' | 'kbm' = 'pad';
+  const setPauseTab = (tab: 'pad' | 'kbm') => {
+    pauseGuideTab = tab;
+    pauseTabPad?.classList.toggle('on', tab === 'pad');
+    pauseTabKbm?.classList.toggle('on', tab === 'kbm');
+    if (pauseGuidePad) pauseGuidePad.style.display = tab === 'pad' ? 'block' : 'none';
+    if (pauseGuideKbm) pauseGuideKbm.style.display = tab === 'kbm' ? 'block' : 'none';
+  };
+  pauseTabPad?.addEventListener('click', () => setPauseTab('pad'));
+  pauseTabKbm?.addEventListener('click', () => setPauseTab('kbm'));
+
+  const buildBottomHud = (pad: boolean, canSwitch: boolean) => pad
+    ? `<kbd>LS</kbd> Move/Climb · <kbd class="btn-a">A</kbd> Jump/Swim Up · <kbd>LB</kbd> Grapple · <kbd>D-Up</kbd> Pick Up · <kbd>D-Down</kbd> Dive/Drop · <kbd>LT</kbd>+<kbd>D-◀▶</kbd> Loadout · <kbd>Hold View</kbd> Armory${canSwitch ? ' · <kbd>RB</kbd> Character' : ''} · <kbd>Start</kbd> Pause`
+    : `<kbd>WASD</kbd> Move/Climb · <kbd>Space</kbd> Double Jump/Swim Up · <kbd>E</kbd> Grapple · <kbd>H</kbd> Pick Up · <kbd>[</kbd><kbd>]</kbd> Loadout · <kbd>L</kbd> Armory · <kbd>C</kbd> Dive/Drop${canSwitch ? ' · <kbd>1-7</kbd> Character' : ''} · <kbd>V</kbd> View · <kbd>Esc</kbd> Pause`;
+
+  const syncPauseScreen = () => {
+    const canSwitch = allowVesselSwitch();
+    if (pauseMetaEl) pauseMetaEl.textContent = `${arena.info.name} · ${activeModeLabel()}`;
+    if (pauseStatusEl) {
+      const lo = armory.active;
+      pauseStatusEl.textContent = `${player.vessel.name} · Loadout ${armory.activeIdx + 1}: ${lo.name}${canSwitch ? ' · Character switching open' : ' · Character locked in this mode'}`;
+    }
+    if (pauseVesselRowPad) pauseVesselRowPad.style.opacity = canSwitch ? '1' : '0.35';
+    if (pauseVesselRowKbm) pauseVesselRowKbm.style.opacity = canSwitch ? '1' : '0.35';
+    setPauseTab(lastPadUi ? 'pad' : 'kbm');
+  };
+
+  let lastCanSwitch = !allowVesselSwitch(); // force initial HUD sync on first frame
+  let pauseFocusIdx = 0;
+  let pauseNavCd = 0;
+  let wasOverlayHidden = true;
+  const pauseBtns = () => ['#startBtn', '#armoryBtn', '#controlsBtn', '#menuBtn']
+    .map((sel) => document.querySelector<HTMLButtonElement>(sel))
+    .filter((b): b is HTMLButtonElement => !!b);
+  // Keyboard navigation inside the redesigned Pause Menu (matching main system menu)
+  window.addEventListener('keydown', (e) => {
+    if (overlay.classList.contains('hidden') || controlsOpen() || armory.isOpen || document.querySelector('.rr-load')) return;
+    const btns = pauseBtns();
+    if (!btns.length) return;
+    if (e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); pauseFocusIdx = (pauseFocusIdx - 1 + btns.length) % btns.length; btns.forEach((b, i) => b.classList.toggle('pad-focus', i === pauseFocusIdx)); }
+    else if (e.code === 'ArrowDown' || e.code === 'KeyS') { e.preventDefault(); pauseFocusIdx = (pauseFocusIdx + 1) % btns.length; btns.forEach((b, i) => b.classList.toggle('pad-focus', i === pauseFocusIdx)); }
+    else if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); btns[pauseFocusIdx]?.click(); }
+    else if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') { setPauseTab(pauseGuideTab === 'pad' ? 'kbm' : 'pad'); }
+  });
+  pauseBtns().forEach((b, i) => b.addEventListener('pointerenter', () => {
+    pauseFocusIdx = i;
+    pauseBtns().forEach((btn, idx) => btn.classList.toggle('pad-focus', idx === pauseFocusIdx));
+  }));
+
   function frame(now: number, once = false) {
     const realDt = Math.max(0, Math.min(0.05, (now - last) / 1000));
     last = now;
@@ -841,7 +973,56 @@ async function boot() {
     trapDamageCooldown = Math.max(0, trapDamageCooldown - dt);
 
     const input = controls.poll(dt);
-    if (input.isTouchActive) touchHud.classList.add('on');
+    if (input.isTouchActive) {
+      touchHud.classList.add('on');
+      document.body.classList.add('rr-touch');
+    }
+    const usePad = input.padAim || input.padConnected;
+    const canSwitchNow = allowVesselSwitch();
+    if (usePad !== lastPadUi || canSwitchNow !== lastCanSwitch) {
+      lastPadUi = usePad;
+      lastCanSwitch = canSwitchNow;
+      armory.setPadMode(usePad);
+      armory.refreshModeLock();
+      if (vesselBarEl) vesselBarEl.style.display = canSwitchNow ? 'flex' : 'none';
+      if (hudBottomEl) hudBottomEl.innerHTML = buildBottomHud(usePad, canSwitchNow);
+      camText.textContent = player.firstPerson
+        ? (usePad ? '1ST PERSON [VIEW]' : '1ST PERSON [V]')
+        : (usePad ? '3RD PERSON [VIEW]' : '3RD PERSON [V]');
+    }
+    // Controller Pause / Armory toggles (Start = Pause/Resume, Hold View = Armory & Loadouts)
+    if (input.pausePressed && !document.querySelector('.rr-load')) {
+      if (controlsOpen()) closeControls();
+      else if (armory.isOpen) armory.toggle(false);
+      else if (player.enabled) { player.enabled = false; overlay.classList.remove('hidden'); pauseFocusIdx = 0; syncPauseScreen(); }
+      else if (!overlay.classList.contains('hidden')) enterRift(false);
+    }
+    if (input.armoryTogglePressed && !controlsOpen() && overlay.classList.contains('hidden') && !document.querySelector('.rr-load')) {
+      armory.toggle();
+      controls.rumble(0.18, 0.14, 55);
+    }
+    const overlayHidden = overlay.classList.contains('hidden');
+    if (!overlayHidden && wasOverlayHidden) { pauseFocusIdx = 0; syncPauseScreen(); }
+    wasOverlayHidden = overlayHidden;
+    // Controller navigation on Pause overlay (#overlay): Up/Down list, A select, B resume, LB/RB switch control guide tab
+    if (!overlayHidden && !controlsOpen() && !armory.isOpen) {
+      const btns = pauseBtns();
+      const pad = findActiveGamepad(navigator.getGamepads?.());
+      if (pad && btns.length) {
+        pauseNavCd = Math.max(0, pauseNavCd - realDt);
+        const ly = pad.axes[1] ?? 0;
+        const up = Boolean(pad.buttons[12]?.pressed) || ly < -0.55;
+        const down = Boolean(pad.buttons[13]?.pressed) || ly > 0.55;
+        if ((up || down) && pauseNavCd <= 0) {
+          pauseFocusIdx = (pauseFocusIdx + (down ? 1 : -1) + btns.length) % btns.length;
+          pauseNavCd = 0.19;
+        }
+        btns.forEach((b, i) => b.classList.toggle('pad-focus', i === pauseFocusIdx));
+        if (input.grapplePressed || input.cycleVesselPressed) setPauseTab(pauseGuideTab === 'pad' ? 'kbm' : 'pad');
+        if (input.jumpPressed) btns[pauseFocusIdx]?.click();
+        else if (input.dashPressed) enterRift(false);
+      }
+    }
 
     rhythm.update();
     updateMood(dt);
@@ -896,34 +1077,69 @@ async function boot() {
     }
     player.update(dt, rhythm.pulse, input);
     if (galeHasteT > 0) player.moveMul *= 1.28;
-    armory.update(dt, player.object.position, player.enabled && !player.downed);
+    if (player.enabled && !player.downed && !armory.isOpen) {
+      if (input.pickupPressed && armory.nearbyPickup && armory.tryPickup()) {
+        rhythm.playDash(true);
+        controls.rumble(0.45, 0.35, 110);
+      }
+      if (input.restorePressed && danger?.triggerRestore()) {
+        controls.rumble(0.32, 0.26, 95);
+      }
+      if (input.wardenPressed) {
+        danger?.triggerWarden();
+        controls.rumble(0.4, 0.3, 100);
+      }
+      if (input.loadoutNextPressed) { armory.selectLoadout(armory.activeIdx + 1); controls.rumble(0.2, 0.14, 55); }
+      if (input.loadoutPrevPressed) { armory.selectLoadout(armory.activeIdx - 1); controls.rumble(0.2, 0.14, 55); }
+    }
+    armory.update(realDt, player.object.position, player.enabled && !player.downed);
     uwOverlay.style.opacity = player.underwater ? '1' : '0';
     {
       const pills: string[] = [];
+      const kJump = usePad ? 'A' : 'SPACE';
+      const kDrop = usePad ? 'D-DOWN' : 'C';
+      const kGrap = usePad ? 'LB' : 'E';
       if (gStatus.available) {
         const gc = `#${(player.vessel.grapple?.color ?? 0x38bdf8).toString(16).padStart(6, '0')}`;
         const txt = gStatus.phase !== 'idle'
-          ? `${gStatus.label} RETRACTING · [SPACE] SLINGSHOT`
+          ? `${gStatus.label} RETRACTING · [${kJump}] SLINGSHOT`
           : gStatus.cooldown > 0
             ? `${gStatus.label} ${gStatus.cooldown.toFixed(1)}s`
             : gStatus.aimDist !== null
-              ? `[E] ${gStatus.label} · ${Math.round(gStatus.aimDist)}m`
+              ? `[${kGrap}] ${gStatus.label} · ${Math.round(gStatus.aimDist)}m`
               : `${gStatus.label} READY`;
         pills.push(`<div style="padding:4px 9px;border:1px solid ${gStatus.aimDist !== null || gStatus.phase !== 'idle' ? gc : '#475569'};border-radius:4px;background:#030d18cc;color:${gStatus.aimDist !== null || gStatus.phase !== 'idle' ? gc : '#94a3b8'}">${txt}</div>`);
       }
       if (player.climbing) {
-        pills.push(`<div style="padding:4px 9px;border:1px solid #c084fc;border-radius:4px;background:#0f061acc;color:#e9d5ff">CLIMBING · GRIP ${Math.round(player.climbStamina)}% · [SPACE] KICK · [C] DROP</div>`);
+        pills.push(`<div style="padding:4px 9px;border:1px solid #c084fc;border-radius:4px;background:#0f061acc;color:#e9d5ff">CLIMBING · GRIP ${Math.round(player.climbStamina)}% · [${kJump}] KICK · [${kDrop}] DROP</div>`);
       }
       if (player.swimming) {
         const curTxt = player.waterFlowSpeed > 0.6 ? ` · CURRENT ${player.waterFlowSpeed.toFixed(1)}m/s` : '';
         const airTxt = player.underwater || player.breath < 99 ? ` · AIR ${Math.round(player.breath)}%` : '';
-        pills.push(`<div style="padding:4px 9px;border:1px solid #2dd4bf;border-radius:4px;background:#031820cc;color:#99f6e4">SWIMMING${curTxt}${airTxt} · [SPACE] UP · [C] DIVE</div>`);
+        pills.push(`<div style="padding:4px 9px;border:1px solid #2dd4bf;border-radius:4px;background:#031820cc;color:#99f6e4">SWIMMING${curTxt}${airTxt} · [${kJump}] UP · [${kDrop}] DIVE</div>`);
       }
       if (galeHasteT > 0) {
         pills.push(`<div style="padding:4px 9px;border:1px solid #fbbf24;border-radius:4px;background:#1a1204cc;color:#fde68a">GALE SURGE ${Math.ceil(galeHasteT)}s</div>`);
       }
       const html = pills.join('');
       if (html !== lastTravHtml) { lastTravHtml = html; travHud.innerHTML = html; }
+      if (btnGrappleEl) {
+        const gState = !gStatus.available ? 'off' : gStatus.phase !== 'idle' ? 'pull' : gStatus.aimDist !== null ? 'aim' : 'idle';
+        if (gState !== lastTouchGrappleState) {
+          lastTouchGrappleState = gState;
+          btnGrappleEl.style.display = gState === 'off' ? 'none' : 'grid';
+          btnGrappleEl.classList.toggle('ready', gState === 'aim' || gState === 'pull');
+          btnGrappleEl.textContent = gState === 'pull' ? 'REEL' : 'GRAPPLE';
+        }
+      }
+      if (btnPickupEl) {
+        const pState = armory.nearbyPickup ? 'loot' : 'forage';
+        if (pState !== lastTouchPickupState) {
+          lastTouchPickupState = pState;
+          btnPickupEl.classList.toggle('ready', pState === 'loot');
+          btnPickupEl.textContent = pState === 'loot' ? 'PICK UP' : 'FORAGE';
+        }
+      }
     }
     if (document.body.classList.contains('rr-ingame') !== player.enabled) document.body.classList.toggle('rr-ingame', player.enabled); // no OS cursor in play
     // bodies are solid: the player can't walk through enemies or predators (pushed out sideways, a boss is wider)
@@ -1014,8 +1230,51 @@ async function boot() {
     beatRing.style.transform = `translate(-50%, -50%) scale(${ringScale.toFixed(3)})`;
     beatRing.style.borderColor = rhythm.pulse > 0.65 ? '#fbbf24' : '#38bdf8aa';
 
+    const hpFrac = player.maxHp > 0 ? player.hp / player.maxHp : 1;
     hpText.textContent = `${player.hp}/${player.maxHp}`;
-    hpBar.style.width = `${(player.hp / player.maxHp) * 100}%`;
+    hpBar.style.width = `${hpFrac * 100}%`;
+    if (hpBarWrap) {
+      hpBarWrap.classList.toggle('low', hpFrac < 0.45 && hpFrac >= 0.25);
+      hpBarWrap.classList.toggle('crit', hpFrac < 0.25);
+    }
+    if (lowHpVignette) {
+      const vigOp = !player.enabled || player.downed || hpFrac >= 0.42 ? 0 : Math.min(1, (0.42 - hpFrac) / 0.34);
+      lowHpVignette.style.opacity = vigOp.toFixed(2);
+      lowHpVignette.classList.toggle('crit', hpFrac < 0.25 && player.enabled && !player.downed);
+    }
+    const lwHud = danger?.livingWorldHud();
+    if (lowHpBanner) {
+      const showWarn = player.enabled && !player.downed && hpFrac < 0.35;
+      lowHpBanner.classList.toggle('on', showWarn);
+      if (showWarn) {
+        const helping = lwHud?.disposition === 'helping';
+        const keyUse = usePad ? 'D-UP' : 'H';
+        const keyWater = usePad ? 'LT+D-UP' : 'U';
+        const msg = hpFrac < 0.22
+          ? (helping
+              ? `CRITICAL INTEGRITY · <b>FOLLOW EMERALD VINES TO HEAL</b> · [${keyUse}] EAT / DRINK · [${keyWater}] LIVING WATER`
+              : `CRITICAL INTEGRITY · FIND BERRIES, CLEAR WATER OR BAG HEAL ([${keyUse}])`)
+          : (helping
+              ? `LOW INTEGRITY · <b>EMERALD VINES POINT TO AID</b> · HOLD [${keyUse}] TO EAT / DRINK`
+              : `LOW INTEGRITY · FOREST IS SILENT · FORAGE OR DRINK CLEAR WATER`);
+        if (msg !== lastLowHpText) { lastLowHpText = msg; lowHpBanner.innerHTML = msg; }
+      }
+    }
+    if (forestHud && lwHud) {
+      if (!forestHud.classList.contains('on')) forestHud.classList.add('on');
+      const noteTxt = usePad ? lwHud.note.replace(/\[U\]/g, '[LT+D-UP]') : lwHud.note;
+      const key = `${lwHud.label}|${lwHud.health}|${lwHud.waterCharges}|${lwHud.seedCharges}|${lwHud.friends}|${noteTxt}`;
+      if (key !== lastForestHudKey) {
+        lastForestHudKey = key;
+        if (fhState) fhState.textContent = `ELDERWOOD · ${lwHud.label}`;
+        if (fhPct) fhPct.textContent = `${lwHud.health}%`;
+        if (fhBar) fhBar.style.width = `${lwHud.health}%`;
+        if (fhWater) fhWater.textContent = `${lwHud.waterCharges}/${lwHud.maxWater}`;
+        if (fhSeeds) fhSeeds.textContent = `${lwHud.seedCharges}/${lwHud.maxSeeds}`;
+        if (fhAllies) fhAllies.textContent = String(lwHud.friends);
+        if (fhNote) fhNote.textContent = noteTxt;
+      }
+    }
     resText.textContent = `${resonance.toFixed(1)}x`;
     resBar.style.width = `${((resonance - 1) / 3) * 100}%`;
     scoreText.textContent = String(score);
@@ -1027,11 +1286,11 @@ async function boot() {
       showBeatFeedback(`TRIAL ${enemies.wave} · ${b.name.toUpperCase()}`, '#fbbf24');
     }
     waveText.textContent = rules ? rules.title : campaign?.title() ?? modes?.title() ?? (arena.hub ? `${currentBiomeName} · stand on a mode rune or take a portal` : `Trial ${enemies.wave} · ${currentBiomeName}`);
-    surgeTag.textContent = resonance >= 2.0 ? 'SOUL SURGE READY [Q]' : 'SURGE AT 2.0x RESONANCE';
+    surgeTag.textContent = resonance >= 2.0 ? (usePad ? 'SOUL SURGE READY [Y]' : 'SOUL SURGE READY [Q]') : 'SURGE AT 2.0x RESONANCE';
     {
       const c = player.weapons.getCharge();
-      const label = player.fists ? 'FISTS  ·  MMB / 5: gun' : c.overheated ? 'OVERHEATED' : c.venting ? 'VENTING' : c.shotsLeft === 0 ? 'SPIRIT DRAINED · FIND CHARGE'
-        : `SPIRIT ${Math.round(c.charge)} / ${c.max}${c.heat > 0.6 ? '  ·  [R] VENT' : ''}${player.crouched ? '  · CROUCHED' : ''}`;
+      const label = player.fists ? (usePad ? 'FISTS  ·  D-RIGHT: gun' : 'FISTS  ·  MMB / 5: gun') : c.overheated ? 'OVERHEATED' : c.venting ? 'VENTING' : c.shotsLeft === 0 ? 'SPIRIT DRAINED · FIND CHARGE'
+        : `SPIRIT ${Math.round(c.charge)} / ${c.max}${c.heat > 0.6 ? (usePad ? '  ·  [D-LEFT] VENT' : '  ·  [R] VENT') : ''}${player.crouched ? '  · CROUCHED' : ''}`;
       if (hudLabel.textContent !== label) { hudLabel.textContent = label; hudLabel.style.color = c.overheated ? '#fb923c' : c.shotsLeft === 0 ? '#fb7185' : '#e2f3ff'; }
       const cw = `${(c.frac * 100).toFixed(1)}%`, hw = `${(c.heat * 100).toFixed(1)}%`;
       if (hudCharge.style.width !== cw) hudCharge.style.width = cw;
@@ -1060,28 +1319,40 @@ async function boot() {
     if (!once) requestAnimationFrame(frame);
   }
 
-  // ── loading: compile what joined after the level's precompile (vessel, enemies, VFX, post), draw one frame behind
-  //    the loading screen so the first visible frame doesn't stall, then wait for the player to enter ──
+  // ── loading: compile shadow / MRT / post / scene pipelines ONCE in parallel for the active render pass, draw one
+  //    frame behind the loading screen so the first visible frame doesn't stall, then wait for the player to enter ──
   await loading.stage('spawn');
   const tSpawn = performance.now();
-  try { await renderer.compileAsync(scene, camera); } catch (e) { console.warn('[load] spawn precompile', e); }
+  // When post is active (high / intel), skip swapchain compileAsync (it compiles for the wrong non-MRT / MSAA pass and
+  // would be discarded); warmFrame compiles every active shadow, MRT, scene, AO, godrays, bloom & FSR pipeline ONCE in parallel!
+  if (!post || new URLSearchParams(location.search).get('fastcompile') === '0') {
+    try { await renderer.compileAsync(scene, camera); } catch (e) { console.warn('[load] spawn precompile', e); }
+  }
   const tFirst = performance.now();
-  // shadow / post pipelines compile async in a no-draw pass first (menu/fastCompile.ts warmFrame), then the real frame
   const warmed = new URLSearchParams(location.search).get('fastcompile') === '0' ? 0
-    : await warmFrame(renderer, () => frame(performance.now(), true), (n, t) => loading.progress(0.5 + 0.45 * (n / Math.max(1, t)), `${n} / ${t} frame shaders`));
+    : await warmFrame(renderer, () => frame(performance.now(), true), (n, t) => loading.progress(0.08 + 0.88 * (n / Math.max(1, t)), `${n} / ${t} shaders`));
   const tWarm = performance.now();
   frame(performance.now(), true);
-  await (renderer.backend as any).device?.queue?.onSubmittedWorkDone?.(); // the GPU actually finished that frame
+  const workDone = (renderer.backend as any).device?.queue?.onSubmittedWorkDone?.();
+  if (workDone) {
+    await Promise.race([workDone.catch(() => undefined), new Promise<void>((r) => window.setTimeout(r, 12000))]);
+  }
   console.info(`[load] spawn: precompile ${Math.round(tFirst - tSpawn)} ms, warm frame ${Math.round(tWarm - tFirst)} ms (${warmed} pipelines), first frame ${Math.round(performance.now() - tWarm)} ms`);
   console.info(`[load] precompile: ${compileStats.objects} objects, ${compileStats.pipelines} pipelines, ${Math.round(compileStats.ms)} ms in ${compileStats.calls} passes`);
   const entered = loading.ready().then(() => {
     loading.hide();
     prefetch.remember(levelId);
     if (!new URLSearchParams(location.search).has('rrdebug')) enterRift(controls.isTouchDevice);
-    // the rest of the world's shaders (areas out of view at spawn), in the background so walking on doesn't hitch
-    window.setTimeout(() => { void compileEverything(renderer, scene, camera).then(() => console.info('[load] background warm-up done')); }, 1500);
+    // Stream sculpted Grovewarden GLBs & remaining playable vessels gently in the background after gameplay begins
+    ents?.startRigStreaming();
+    trickleRemainingVessels(pickChar.id);
+    // Off-camera swapchain warm-up is only relevant for direct rendering (post-pass materials are shared and already warm)
+    if (!post) {
+      window.setTimeout(() => { void compileEverything(renderer, scene, camera).then(() => console.info('[load] background warm-up done')); }, 1500);
+    }
   });
   document.getElementById('menuBtn')?.addEventListener('click', () => { location.href = location.pathname; }); // pause → back to the menus
+  document.getElementById('armoryBtn')?.addEventListener('click', () => { overlay.classList.add('hidden'); wasEnabledBeforeArmory = true; armory.toggle(true); }); // pause → Armory & Loadouts
   document.getElementById('controlsBtn')?.addEventListener('click', () => openControls()); // pause → Controls page
   // Esc pauses drag-look play too (no pointer lock to release, e.g. an embedded view that refused the lock)
   window.addEventListener('keydown', (e) => {

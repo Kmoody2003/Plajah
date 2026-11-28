@@ -25,6 +25,9 @@ import { Bonds } from './bonds';
 import { Mycelium } from './mycelium';
 import { Inventory } from './inventory';
 import { Wardens } from './wardens';
+import { ForestHealthSystem } from './forestHealth';
+import { DemonDirector } from './demons';
+import { VillageDirector } from './villages';
 
 export interface DangerCtx {
   scene: THREE.Scene;
@@ -67,6 +70,9 @@ export class Danger {
   readonly bag: Inventory;
   /** Grovewardens × player: call, assist, synergy combos (wardens.ts; the wardens themselves are src/ents). */
   readonly wardens: Wardens;
+  readonly forestHealth: ForestHealthSystem;
+  readonly demons: DemonDirector;
+  readonly villages: VillageDirector;
   readonly forest = forest;
   private lastCombat = -99;
   private combatNoteT = 0; private beatT = 0;
@@ -164,10 +170,67 @@ export class Danger {
     // ── the living world ──
     const say = (t: string, c: string) => this.ctx.say(t, c);
     this.soul = new SoulMeter(ctx.player, ctx.vfx, (t, c) => this.hint(t, c));
+    this.forestHealth = new ForestHealthSystem({
+      scene: ctx.scene, vfx: ctx.vfx, audio: this.audio, player: ctx.player, prey: this.prey, soul: this.soul,
+      wilds: this.wilds, lo: ctx.lo, ground, say: (t, c) => this.hint(t, c),
+      onReinforceWarden: (wantCount) => {
+        const E = (globalThis as unknown as { __rr?: { ents?: { reinforce?(n: number): number } | null } }).__rr?.ents;
+        E?.reinforce?.(wantCount);
+      },
+    });
+    this.demons = new DemonDirector({
+      scene: ctx.scene, vfx: ctx.vfx, audio: this.audio, status: this.status, lo: ctx.lo, wilds: this.wilds,
+      ground, resolve: (p, r, h) => col.resolve(p, r, h), hurtPlayer: hurt,
+      forestHealth: () => this.forestHealth.health,
+      wardens: () => {
+        const E = (globalThis as unknown as { __rr?: { ents?: { list(): { id: number; kind: string; pos: THREE.Vector3; hp?: number }[] } | null } }).__rr?.ents;
+        return E?.list() ?? [];
+      },
+      onHelpedWarden: (wardenId, killed, isBoss, pos) => {
+        this.wardens?.helpedWarden(wardenId, killed, isBoss);
+        if (killed) this.soul.deed('protect', pos, isBoss ? 12 : 5);
+      },
+      onDemonKilled: (d, byPlayer) => {
+        this.forestHealth.adjustHealth(d.boss ? 4 : 1.5, `slain-${d.kind}`);
+        if (byPlayer) ctx.onKill(d.spec.xp, d.who, d.pos.clone());
+      },
+      say: (t, c) => this.hint(t, c),
+    });
+    this.villages = new VillageDirector({
+      scene: ctx.scene, vfx: ctx.vfx, audio: this.audio, demons: this.demons, lo: ctx.lo, wilds: this.wilds,
+      ground, initialForestHealth: this.forestHealth.health,
+      onVillageSaved: (v, wasFortress) => {
+        const hpBoost = wasFortress ? 18 : 9;
+        this.forestHealth.adjustHealth(hpBoost, `village-${v.id}`);
+        this.forestHealth.waterCharges = this.forestHealth.maxWater;
+        this.forestHealth.seedCharges = this.forestHealth.maxSeeds;
+        this.soul.deed('protect', new THREE.Vector3(v.x, 0, v.z), wasFortress ? 20 : 12);
+        const p = ctx.player; if (!p.downed) p.hp = p.maxHp;
+        this.charge(50, 'village');
+        ctx.onKill(wasFortress ? 250 : 120, `${v.name} Liberated`, new THREE.Vector3(v.x, 0, v.z));
+        this.hint(
+          wasFortress
+            ? `${v.name.toUpperCase()} LIBERATED · +${hpBoost}% FOREST HEALTH · LIVING WATERS & SEEDS REFILLED!`
+            : `${v.name.toUpperCase()} DEFENDED · GRATEFUL VILLAGERS RESTORE YOUR INTEGRITY & VESSEL!`,
+          '#fde68a',
+        );
+      },
+      onVillageGift: (v) => {
+        this.forestHealth.waterCharges = this.forestHealth.maxWater;
+        this.forestHealth.seedCharges = Math.min(this.forestHealth.maxSeeds, this.forestHealth.seedCharges + 2);
+        this.charge(25, 'village');
+        const p = ctx.player; if (!p.downed) p.hp = Math.min(p.maxHp, p.hp + 25);
+        say(`${v.name.toUpperCase()} VILLAGERS SHARE LIVING WATERS, SEEDS & +25 HP`, '#fde68a');
+      },
+      say: (t, c) => this.hint(t, c),
+    });
     this.mycelium = new Mycelium({
       scene: ctx.scene, vfx: ctx.vfx, audio: this.audio, status: this.status, player: ctx.player, forage: this.forage, soul: this.soul, lo: ctx.lo, ground,
       charge: (n, src) => this.charge(n, src),
       chargeFrac: () => { const w = (ctx.player as unknown as { weapons?: { getCharge?: () => { frac: number } } }).weapons; return w?.getCharge?.()?.frac ?? null; },
+      nearestDemon: () => this.demons.nearestTo(ctx.player.object.position, 100),
+      nearestAidPoint: () => this.forestHealth.nearestAidPoint(ctx.player.object.position),
+      forestTrust: () => this.forestHealth.trustScore + (this.wardens?.friendCount ?? 0) * 0.5,
       hurt, say: (t, c) => this.hint(t, c),
       hazardFungi: () => hazards.filter((h) => h.kind === 'fungi' || h.kind === 'spores').map((h) => ({ x: h.x, y: ground(h.x, h.z), z: h.z, kind: h.kind })),
       sinceCombat: () => this.clock - this.lastCombat,
@@ -200,6 +263,7 @@ export class Danger {
       foes: () => [
         ...ctx.enemies.enemies.filter((e) => e.hp > 0).map((e) => ({ id: e.id, pos: e.mesh.position, hp: e.hp, maxHp: e.maxHp, who: (e as unknown as { who?: string }).who ?? 'creature', kind: 'enemy' as const, boss: !!(e as unknown as { boss?: boolean }).boss })),
         ...this.predators.list.filter((p) => p.alive).map((p) => ({ id: p.id, pos: p.pos, hp: p.hp, maxHp: p.maxHp, who: p.who, kind: 'predator' as const })),
+        ...this.demons.list.filter((d) => d.alive).map((d) => ({ id: d.id, pos: d.pos, hp: d.hp, maxHp: d.maxHp, who: d.who, kind: 'demon' as const, boss: d.boss })),
       ],
       hit: (f, dmg, from, o = {}) => {
         dmg = Math.round(dmg * this.dmgMul);
@@ -207,6 +271,7 @@ export class Danger {
         const dir = (o.toward ? this.v.subVectors(o.toward, f.pos) : this.v.subVectors(f.pos, from)).setY(0);
         if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1); dir.normalize();
         if (f.kind === 'enemy') return !!ctx.enemies.damageEnemy(f.id, dmg, dir.clone(), o.knock ?? 1, { source: 'melee', launch: o.launch, hitstun: o.hitstun, unblockable: true })?.killed;
+        if (f.kind === 'demon') return !!this.demons.damage(f.id, dmg, o.toward ? null : from, o.knock ?? 1, true, o.hitstun ?? 0)?.killed;
         const r = this.damageId(f.id, dmg, o.toward ? null : from, o.knock ?? 1);
         return !!r?.killed;
       },
@@ -265,11 +330,23 @@ export class Danger {
   }
 
   // ── what main.ts calls ──────────────────────────────────────────────────────────────────────────────────────────
-  /** Hit meshes to add to the shot raycast (userData.predatorId). */
-  hitMeshes(): THREE.Object3D[] { return [...this.predators.list.filter((p) => p.alive).map((p) => p.hitTarget), ...this.prey.hitMeshes()]; }
+  /** Hit meshes to add to the shot raycast (userData.predatorId / preyId / demonId). */
+  hitMeshes(): THREE.Object3D[] {
+    return [
+      ...this.predators.list.filter((p) => p.alive).map((p) => p.hitTarget),
+      ...this.demons.list.filter((d) => d.alive).map((d) => d.hitTarget),
+      ...this.prey.hitMeshes(),
+    ];
+  }
 
-  /** A shot / strike landed on `obj` (one of hitMeshes()). Null if it isn't a predator. */
+  /** A shot / strike landed on `obj` (one of hitMeshes()). Null if not a predator, demon, or prey. */
   damage(obj: THREE.Object3D, dmg: number, from: THREE.Vector3 | null, knock = 0) {
+    const did = obj.userData.demonId as number | undefined;
+    if (did !== undefined && did >= 0) {
+      this.lastCombat = this.clock;
+      const r = this.demons.damage(did, dmg, from, knock, true);
+      return r ? { killed: r.killed, pos: r.pos } : null;
+    }
     const qid = obj.userData.preyId as number | undefined;
     if (qid !== undefined) {   // a prey animal: no XP, but a carcass to eat
       if (qid < 0) return null;
@@ -296,11 +373,20 @@ export class Danger {
     return r;
   }
 
-  /** Melee strike from `pos` toward `forward`: hits every predator in reach. Returns the hits for the game's feedback. */
+  /** Melee strike from `pos` toward `forward`: hits every predator, demon, and prey in reach. */
   melee(pos: THREE.Vector3, forward: THREE.Vector3, dmg: number, reach = 3.6) {
     const out: { killed: boolean; pos: THREE.Vector3 }[] = [];
     dmg = Math.round(dmg * this.dmgMul);
     this.lastCombat = this.clock;
+    for (const d of [...this.demons.list]) {
+      if (!d.alive) continue;
+      const to = this.v.subVectors(d.pos, pos).setY(0), dist = to.length();
+      if (dist > reach + (d.boss ? 1.8 : 0.7) || Math.abs(d.pos.y - pos.y) > 3.6) continue;
+      if (dist > 0.01) to.divideScalar(dist);
+      if (forward.dot(to) < 0.22 && dist > 1.5) continue;
+      const r = this.demons.damage(d.id, dmg, pos, 2.5, true, 0.35);
+      if (r) out.push({ killed: r.killed, pos: r.pos });
+    }
     for (const p of [...this.predators.list]) {
       if (!p.alive) continue;
       const to = this.v.subVectors(p.pos, pos).setY(0), d = to.length();
@@ -322,10 +408,11 @@ export class Danger {
     return out;
   }
 
-  /** A blast (Soul Surge): everything in radius. */
+  /** A blast (Soul Surge): everything in radius (predators + demons). */
   blast(center: THREE.Vector3, r: number, dmg: number) {
     let kills = 0;
     for (const p of [...this.predators.list]) if (p.alive && p.pos.distanceTo(center) < r) { if (this.damageId(p.id, dmg, center, 3.6)?.killed) kills++; }
+    kills += this.demons.areaHit(center, r, dmg, true, 4.0, 0.8);
     this.predators.noise(center, 45);
     return kills;
   }
@@ -337,20 +424,47 @@ export class Danger {
     if (this.combatNoteT <= 0) { this.combatNoteT = 0.5; forest.notify('combat', pos, { loud: r }, 'player'); }
   }
 
-  /** The rift's creatures plus the live predators, for targeting / lock-on (predators carry the same fields). */
+  /** The rift's creatures plus live predators and Demon Legions, for targeting / lock-on. */
   foes(enemies: Enemy[]): Enemy[] {
     this.foesArr.length = 0;
     for (const e of enemies) this.foesArr.push(e);
     for (const p of this.predators.list) if (p.alive) this.foesArr.push(p as unknown as Enemy);
+    for (const d of this.demons.list) if (d.alive) this.foesArr.push(d as unknown as Enemy);
     return this.foesArr;
   }
-  /** Predator under the lock / soft target? (melee aims at `.mesh.position` for both). */
-  isPredator(x: unknown): boolean { return !!x && typeof (x as Predator).spec === 'object' && 'den' in (x as object); }
+  /** Predator or Demon under the lock / soft target? (melee aims at `.mesh.position` for both). */
+  isPredator(x: unknown): boolean { return !!x && typeof (x as Predator).spec === 'object' && ('den' in (x as object) || 'targetWardenId' in (x as object)); }
+
+  /** Trigger Living Water Spray / Pure Seed Sowing / Seed Gathering ([U] / LT+D-Up / Touch WATER/SEED). */
+  triggerRestore(): boolean { return this.forestHealth.triggerRestore(); }
+  /** Summon Sworn Friend Warden or trigger Warden Assist (LT+Y / Touch WARDEN). */
+  triggerWarden() { this.wardens.triggerCallOrAssist(); }
+
+  /** Compact snapshot for Elderwood Living Forest HUD & low-health guidance. */
+  livingWorldHud() {
+    const fh = this.forestHealth.summary();
+    const alert = this.villages.activeAlert(this.ctx.player.object.position);
+    return {
+      ...fh,
+      friends: this.wardens.friendCount,
+      demonsLive: this.demons.list.length,
+      disposition: this.mycelium.disposition,
+      signal: this.mycelium.signalKind,
+      note: alert ?? fh.nearbyPrompt ?? (
+        this.mycelium.signalKind === 'danger'
+          ? 'Vines pulsing RED · Demon threat lurking nearby!'
+          : this.mycelium.disposition === 'helping'
+            ? 'Forest listening · [U] Spray Living Water / Sow Seeds'
+            : 'The forest stays silent · Heal groves or spare life to earn trust'
+      ),
+    };
+  }
 
   /** Something is hunting the player close by (the music goes to combat). */
   get engaged() {
     const pp = this.ctx.player.object.position;
-    return this.predators.list.some((p) => p.engaged && !p.target?.enemy && !p.target?.quarry && p.pos.distanceToSquared(pp) < 35 * 35);
+    return this.predators.list.some((p) => p.engaged && !p.target?.enemy && !p.target?.quarry && p.pos.distanceToSquared(pp) < 35 * 35)
+      || this.demons.list.some((d) => d.alive && d.pos.distanceToSquared(pp) < 42 * 42);
   }
 
   /** Movement multiplier from slows and Swiftpod haste (player.moveMul). */
@@ -393,7 +507,10 @@ export class Danger {
     if ((this.toastT -= dt) <= 0) this.toast.style.opacity = '0';
     pl.moveMul = this.moveMul;
     this.predators.update(dt, pp, pl.crouched, spd > 10, pl.downed || !pl.enabled, this.ctx.enemies.enemies);
+    this.demons.update(dt, pp, pl.downed || !pl.enabled);
+    this.villages.update(dt, pp);
     this.prey.update(dt, pp, pl.crouched, this.predators.list.filter((p) => p.alive && p.pos.distanceToSquared(pp) < 200 * 200).map((p) => p.pos));
+    this.forestHealth.update(dt);
     this.eat.update(dt);
     // the living world
     this.bonds.update(dt);
@@ -418,7 +535,8 @@ export class Danger {
   /** Debug (window.__rr.danger). */
   debug() {
     return {
-      night: +this.night.toFixed(2), predators: this.predators.info(), hazards: this.hazards.info().length, forage: this.forage.info(), prey: this.prey.info(),
+      night: +this.night.toFixed(2), predators: this.predators.info(), demons: this.demons.info(), villages: this.villages.info(),
+      forestHealth: this.forestHealth.summary(), hazards: this.hazards.info().length, forage: this.forage.info(), prey: this.prey.info(),
       soul: Math.round(this.soul.value), mycelium: this.mycelium.info(), bag: this.bag.slots.map((s) => `${s.kind}×${s.n}`), quick: [...this.bag.quick],
       wardens: this.wardens.info(),
       bonds: this.prey.list.filter((p) => p.affinity > 0).map((p) => `${p.who}:${p.affinity.toFixed(2)}${p.bonded ? '*' : ''}`), charge: Math.round(this.chargeGiven),

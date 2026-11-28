@@ -731,11 +731,17 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
 
   kit.build(group);
 
-  // ── structures as art: models built from their sheets in Plajah 3D (visual only; colliders are above) ───────
+  // ── structures as art: models built from their sheets in Plajah 3D (cached so duplicate GLBs never fetch twice) ───────
   const loader = new GLTFLoader();
+  const modelCache = new Map<string, Promise<THREE.Object3D>>();
+  const loadHollowModel = (file: string) => {
+    let p = modelCache.get(file);
+    if (!p) { p = loader.loadAsync(MODELS + file).then((g) => g.scene); modelCache.set(file, p); }
+    return p;
+  };
   const placeModel = (file: string, x: number, z: number, yaw: number, height: number, y = H(x, z), o: { length?: number; replaces?: string } = {}) => {
-    loader.load(MODELS + file, (gltf) => {
-      const root = gltf.scene;
+    void loadHollowModel(file).then((src) => {
+      const root = src.clone(true);
       // scale to the manifest height, then stand its footprint's centre on (x, z) with its base on the ground;
       // `length` stretches it along its own Z (a log generated from its end ring comes out too short)
       const box0 = new THREE.Box3().setFromObject(root);
@@ -748,7 +754,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
       pivot.add(root);
       root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = !lo; m.receiveShadow = true; } });
       group.add(pivot);
-    }, undefined, () => { /* model not built yet: the colliders still stand, the spot reads as a clearing */ });
+    }).catch(() => { /* model not built yet: the colliders still stand, the spot reads as a clearing */ });
   };
   placeModel('great_oak.glb', OAK.x, OAK.z, 0, 24, H(OAK.x, OAK.z) - 0.6);
   placeModel('outpost_cabin.glb', CABIN.x, CABIN.z, CABIN_YAW, 7.2);
@@ -792,8 +798,8 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     }
   }
   forestSpotsV.push(...wildTrees, ...oakSpots);
-  // the open world grows more seeds per species so neighbouring trees differ
-  const forest = new Forest(ELDERWOOD_TREES, forestSpotsV, { lowTier: lo, beat: uBeatPulse, shadows: !lo, variants: W && !lo ? 6 : 3 });
+  // 4 variants on high (3 on low): rich organic canopy variety while cutting CPU tree growth & bucket count
+  const forest = new Forest(ELDERWOOD_TREES, forestSpotsV, { lowTier: lo, beat: uBeatPulse, shadows: !lo, variants: W && !lo ? 4 : 3 });
   group.add(forest.group);
   // every planted tree's trunk is solid: the Forest draws only the trees in view (its instance lists change as you
   // turn), so the colliders come from the planting list, not from what happens to be drawn (collision.ts reads these)
@@ -823,7 +829,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   // ── grass: GPU blade fields from the Cyber Forest grass species (services/vegetation/grass). The ground says where
   //    each grows: glow tufts in clumps away from the paths, turf everywhere but the paths, water and buildings. ──
   const GB = W ? W.half : BOUND + 24;
-  const grassGround = bakeGround({ x0: -GB, z0: -GB, size: GB * 2, res: W ? (lo ? 512 : 1024) : lo ? 128 : 200 }, H, (x, z) => {
+  const grassGround = bakeGround({ x0: -GB, z0: -GB, size: GB * 2, res: W ? (lo ? 384 : 512) : lo ? 128 : 200 }, H, (x, z) => {
     const wc = wb?.grassCover(x, z);
     if (wc) return wc;
     if (inStructure(x, z, 0.5) || dist(x, z, POOL) < 13) return [0, 0];
@@ -914,8 +920,8 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   scene.fog = new THREE.FogExp2(sky.horizon.getHex(), FOG);
   scene.add(group);
 
-  // ── the forest fights back: wolves, mantises, wasps, bats; deer, sky jellies & dragonflies roam the hollow; moths round lights ─
-  preloadCreatures(['wolf', 'mantis', 'wasp', 'deer', 'bat', 'sky_jelly', 'cyber_dragonfly', 'bio_turtle', 'glow_beetle']);
+  // ── the forest fights back: immediate Hollow creatures trickle-preload lazily; distant fauna stream on demand ─
+  preloadCreatures(['deer', 'wolf', 'sky_jelly']);
   const MUL: Partial<Record<CreatureKind, [number, number]>> = { wolf: [1.35, 0.8], mantis: [0.8, 1.5], wasp: [1.1, 0.6], deer: [1, 1], bat: [1.2, 0.7] };
   enemyBodies.make = (id, boss) => {
     const k: CreatureKind = boss ? 'mantis' : (['wolf', 'bat', 'wolf', 'mantis', 'wasp', 'bat'] as const)[id % 6];

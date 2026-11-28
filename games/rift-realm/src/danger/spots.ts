@@ -263,4 +263,18 @@ export const HERDS: Herd[] = [
   { id: 'cathedral-stags', kind: 'stag', x: 300, z: -340, r: 38, n: 3 },
   { id: 'cathedral-jellies', kind: 'jelly', x: 255, z: -410, r: 40, n: 3 },
   { id: 'shrine-salamanders', kind: 'salamander', x: 545, z: -245, r: 34, n: 3 },
+  // Outer frontier regions (Far NW, Far West, SW Escarpment, Far East, Far SE, Far South) — zero dead zones
+  { id: 'far-nw-deer', kind: 'deer', x: -380, z: -340, r: 44, n: 5 },
+  { id: 'far-nw-stags', kind: 'stag', x: -165, z: -420, r: 42, n: 3 },
+  { id: 'far-nw-jellies', kind: 'jelly', x: -460, z: -220, r: 44, n: 4 },
+  { id: 'far-w-deer', kind: 'deer', x: -560, z: 35, r: 44, n: 5 },
+  { id: 'far-w-sloths', kind: 'sloth', x: -510, z: -120, r: 38, n: 3 },
+  { id: 'far-sw-turtles', kind: 'turtle', x: -460, z: 420, r: 40, n: 4 },
+  { id: 'far-sw-dragonflies', kind: 'dragonfly', x: -140, z: 410, r: 38, n: 4 },
+  { id: 'far-e-deer', kind: 'deer', x: 455, z: 120, r: 44, n: 5 },
+  { id: 'far-e-beetles', kind: 'beetle', x: 565, z: -45, r: 38, n: 4 },
+  { id: 'far-se-stags', kind: 'stag', x: 365, z: 345, r: 44, n: 3 },
+  { id: 'far-se-axolotls', kind: 'axolotl', x: 315, z: 265, r: 34, n: 4 },
+  { id: 'far-s-deer', kind: 'deer', x: 45, z: 715, r: 46, n: 5 },
+  { id: 'far-s-jellies', kind: 'jelly', x: -185, z: 710, r: 46, n: 4 },
 ];

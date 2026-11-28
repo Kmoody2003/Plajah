@@ -92,6 +92,8 @@ export interface PredatorEnv {
 interface Pack { members: Predator[]; token: Predator | null; tokenT: number; alerted: number }
 
 let nextId = 100000; // never the same id as one of the rift's creatures (enemies.ts counts from 1)
+const PRED_HIT_GEO = new THREE.CylinderGeometry(0.62, 0.62, 2.1, 8);
+const PRED_HIT_MAT = new THREE.MeshBasicNodeMaterial({ visible: false });
 export class Predator {
   readonly id = nextId++;
   readonly spec: Spec;
@@ -142,8 +144,9 @@ export class Predator {
     this.body.wild = 1;
     this.mesh.add(this.body.root);
     const h = this.body.height;
-    this.hitTarget = new THREE.Mesh(new THREE.CylinderGeometry(0.62 * Math.max(1, this.spec.size), 0.62 * Math.max(1, this.spec.size), 2.1, 8), new THREE.MeshBasicNodeMaterial({ visible: false }));
-    this.hitTarget.scale.y = h / 2.1;
+    const radScale = Math.max(1, this.spec.size);
+    this.hitTarget = new THREE.Mesh(PRED_HIT_GEO, PRED_HIT_MAT);
+    this.hitTarget.scale.set(radScale, h / 2.1, radScale);
     this.hitTarget.position.y = this.body.hover + h / 2;
     this.hitTarget.userData.predatorId = this.id;
     this.mesh.add(this.hitTarget);
@@ -169,16 +172,20 @@ interface Mote { mesh: THREE.Mesh; life: number; heal: number }
 export interface Noise { pos: THREE.Vector3; r: number; t: number }
 export interface Crumb { pos: THREE.Vector3; t: number }
 
-const ACTIVE_R = 195, DESPAWN_R = 280, RESPAWN_SEC = 90;
+const ACTIVE_R = 175, DESPAWN_R = 215, RESPAWN_SEC = 75;
 const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), tmp3 = new THREE.Vector3();
+const FOREST_PRED_ROAM: PredatorKind[] = ['wolf', 'panther', 'mantis', 'wasp', 'hornet', 'cyan_bat', 'drake'];
+const WATER_PRED_ROAM: PredatorKind[] = ['serpent', 'brute', 'hornet', 'bat', 'mantis'];
 
 export class PredatorDirector {
   readonly group = new THREE.Group();
   readonly list: Predator[] = [];
-  private dens: { den: Den; live: Predator[]; deadAt: number[]; pack: Pack | null }[];
+  private dens: { den: Den; live: Predator[]; deadAt: number[]; pack: Pack | null; dynamic?: boolean }[];
   private bolts: Bolt[] = [];
   private motes: Mote[] = [];
   private denT = 0;
+  private roamCd = 0;
+  private roamCid = 1;
   private clock = 0;
   readonly noises: Noise[] = [];
   readonly crumbs: Crumb[] = [];
@@ -192,7 +199,7 @@ export class PredatorDirector {
     this.group.name = 'danger-predators';
     env.scene.add(this.group);
     this.dens = dens.map((den) => ({ den, live: [], deadAt: [], pack: null }));
-    this.max = env.lo ? 16 : 28;
+    this.max = env.lo ? 20 : 34;
   }
 
   /** A sound predators may hear: gunshots, footsteps, blasts. */
@@ -206,25 +213,38 @@ export class PredatorDirector {
     if (this.crumbs.length > 40) this.crumbs.shift();
   }
 
-  // ── spawning: dens near the player are populated; far ones emptied ──────────────────────────────────────────────
+  // ── spawning: dens near the player are populated; far ones emptied; roaming prowlers fill outer Wilds ───────────
   private manageDens(player: THREE.Vector3) {
     const night = this.env.night() > 0.5;
-    // nearest dens first, so the cap never leaves the place you're in empty
-    const order = [...this.dens].sort((a, b) => Math.hypot(a.den.x - player.x, a.den.z - player.z) - Math.hypot(b.den.x - player.x, b.den.z - player.z));
-    for (const d of order) {
-      const dist = Math.hypot(d.den.x - player.x, d.den.z - player.z);
+    // Prune far unengaged predators first so live slots stay available around the player
+    for (let di = this.dens.length - 1; di >= 0; di--) {
+      const d = this.dens[di];
       const open = !d.den.night || night;
-      const want = open ? d.den.n + (night && (d.den.kind === 'wolf' || d.den.n > 1) ? 1 : 0) : 0;
-      // despawn the far, calm ones (or a night den by day, once nobody is looking)
       for (let i = d.live.length - 1; i >= 0; i--) {
         const p = d.live[i];
         if (!p.alive) { d.live.splice(i, 1); continue; }
         const pd = p.pos.distanceTo(player);
         if ((pd > DESPAWN_R && !p.engaged) || (!open && pd > 80 && !p.engaged)) { this.remove(p); d.live.splice(i, 1); }
       }
+      if (d.dynamic && d.live.length === 0 && Math.hypot(d.den.x - player.x, d.den.z - player.z) > DESPAWN_R * 0.65) {
+        this.dens.splice(di, 1);
+        continue;
+      }
       d.deadAt = d.deadAt.filter((t) => this.clock - t < RESPAWN_SEC);
+    }
+
+    // Stagger predator spawns (max 2 per tick) so packs never cause a single-frame stutter
+    let spawned = 0;
+    const SPAWN_BUDGET = 2;
+
+    // Populate nearest static dens first
+    const order = [...this.dens].sort((a, b) => Math.hypot(a.den.x - player.x, a.den.z - player.z) - Math.hypot(b.den.x - player.x, b.den.z - player.z));
+    for (const d of order) {
+      const dist = Math.hypot(d.den.x - player.x, d.den.z - player.z);
+      const open = !d.den.night || night;
+      const want = open ? d.den.n + (night && (d.den.kind === 'wolf' || d.den.n > 1) ? 1 : 0) : 0;
       if (dist > ACTIVE_R || !open) continue;
-      while (d.live.length + d.deadAt.length < want && this.list.length < this.max) {
+      while (spawned < SPAWN_BUDGET && d.live.length + d.deadAt.length < want && this.list.length < this.max) {
         const a = Math.random() * Math.PI * 2, r = Math.random() * d.den.r * 0.6;
         const x = d.den.x + Math.cos(a) * r, z = d.den.z + Math.sin(a) * r;
         if (Math.hypot(x - player.x, z - player.z) < 28) break;            // never pop in next to you
@@ -232,6 +252,41 @@ export class PredatorDirector {
         if (p.spec.fly) p.pos.y += p.alt;
         if (d.den.kind === 'wolf' || d.den.n > 1) { d.pack ??= { members: [], token: null, tokenT: 0, alerted: 0 }; d.pack.members.push(p); p.pack = d.pack; }
         d.live.push(p); this.list.push(p); this.group.add(p.mesh);
+        spawned++;
+      }
+      if (spawned >= SPAWN_BUDGET) break;
+    }
+
+    // Dynamic roaming predator ring in outer Wilds so distant regions never feel lifeless
+    this.roamCd = Math.max(0, this.roamCd - 1);
+    if (spawned < SPAWN_BUDGET && this.dens.length > 6 && this.roamCd <= 0 && this.list.length < this.max && Math.hypot(player.x, player.z) > 62) {
+      const nearTarget = this.env.lo ? 4 : 7;
+      let near = 0;
+      for (const p of this.list) if (p.alive && p.pos.distanceTo(player) < 125) near++;
+      if (near < nearTarget) {
+        this.roamCd = 3;
+        const a = Math.random() * Math.PI * 2;
+        const dist = 48 + Math.random() * 62;
+        const cx = THREE.MathUtils.clamp(player.x + Math.cos(a) * dist, -830, 830);
+        const cz = THREE.MathUtils.clamp(player.z + Math.sin(a) * dist, -830, 830);
+        const gy = this.env.ground(cx, cz);
+        const nearWater = gy < -28 || Math.hypot(cx - 235, cz - 170) < 125;
+        const pool = night && Math.random() < 0.28 ? (['stalker', 'bat', 'wolf', 'panther'] as PredatorKind[]) : nearWater ? WATER_PRED_ROAM : FOREST_PRED_ROAM;
+        const kind = pool[Math.floor(Math.random() * pool.length)];
+        const count = kind === 'wolf' ? 3 : kind === 'stalker' || kind === 'drake' ? 1 : 2;
+        const den: Den = { id: `roam-pred-${kind}-${this.roamCid++}`, kind, x: cx, z: cz, r: 44, n: count };
+        const pack: Pack | null = count > 1 ? { members: [], token: null, tokenT: 0, alerted: 0 } : null;
+        const entry = { den, live: [] as Predator[], deadAt: [] as number[], pack, dynamic: true };
+        for (let k = 0; k < count && spawned < SPAWN_BUDGET && this.list.length < this.max; k++) {
+          const oa = Math.random() * Math.PI * 2, or = 4 + Math.random() * 14;
+          const x = cx + Math.cos(oa) * or, z = cz + Math.sin(oa) * or;
+          const p = new Predator(den, kind, new THREE.Vector3(x, this.env.ground(x, z), z));
+          if (p.spec.fly) p.pos.y += p.alt;
+          if (pack) { pack.members.push(p); p.pack = pack; }
+          entry.live.push(p); this.list.push(p); this.group.add(p.mesh);
+          spawned++;
+        }
+        this.dens.push(entry);
       }
     }
   }

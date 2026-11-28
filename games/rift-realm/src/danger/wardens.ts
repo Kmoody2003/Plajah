@@ -147,8 +147,14 @@ interface EntsApi {
   command(id: number, move: string, target?: { x: number; z: number } | null): boolean;
   moves?(id?: number): string[];
   follow(id: number, target: THREE.Object3D | null): boolean;
+  summonFriend?(id: number, nearPos: THREE.Vector3): boolean;
 }
-interface Foe { id: number; pos: THREE.Vector3; hp: number; maxHp: number; who: string; kind: 'enemy' | 'predator'; boss?: boolean }
+
+/** Pure rule: helping a defending Grovewarden slay 2+ demons or a Siege Titan / Champion earns Sworn Friend status. */
+export function isWardenBefriended(assists: number, helpedKillBoss: boolean): boolean {
+  return assists >= 2 || helpedKillBoss;
+}
+interface Foe { id: number; pos: THREE.Vector3; hp: number; maxHp: number; who: string; kind: 'enemy' | 'predator' | 'demon'; boss?: boolean }
 
 export interface WardensEnv {
   player: PlayerController;
@@ -175,6 +181,9 @@ export class Wardens {
   private table = combos();
   private win: Window | null = null;
   private rally: { id: number; t: number; kind: string } | null = null;
+  /** Grovewardens befriended by fighting beside them against Demon Legions (summonable anywhere!). */
+  readonly friends = new Set<number>();
+  private helpScore = new Map<number, number>();
   private assistCd = 0;
   private yDown = -1; private yHeld = false;
   private pressed = new Set<ComboKey>();
@@ -247,14 +256,55 @@ export class Wardens {
   /** Strikes from under a Bark Ward or a Grove Blessing hit harder. */
   get dmgMul() { return (this.wardT > 0 ? 1.3 : 1) * (this.groveT > 0 ? 1.2 : 1); }
 
-  // ── call / assist ──
+  /** Record player fighting alongside a defending Grovewarden; 2+ demon assists or a Boss/Titan kill earns Sworn Friend! */
+  helpedWarden(wardenId: number, killed: boolean, isBoss: boolean) {
+    if (this.friends.has(wardenId)) return;
+    const prev = this.helpScore.get(wardenId) ?? 0;
+    const next = prev + (killed ? 1 : 0.45);
+    this.helpScore.set(wardenId, next);
+    if (isWardenBefriended(Math.floor(next), killed && isBoss)) {
+      this.friends.add(wardenId);
+      const w = this.ents()?.list().find((q) => q.id === wardenId);
+      const wName = (w?.kind ?? 'Grovewarden').replace(/-/g, ' ').toUpperCase();
+      this.env.say(`${wName} NAMES YOU SWORN FRIEND · HOLD [Y] ANYWHERE TO SUMMON INTO BATTLE`, '#fde68a');
+      this.env.audio.play('rumble', this.env.player.object.position, { gain: 0.7, rate: 0.85 });
+      forest.notify('warden-friend', this.env.player.object.position, { id: wardenId, kind: w?.kind }, 'player');
+    }
+  }
+
+  /** Trigger Call/Summon (if none rallied) or Signature Assist (if rallied) — used by Touch WARDEN button & quick binds. */
+  triggerCallOrAssist() {
+    if (this.rally) this.assist();
+    else this.call();
+  }
+
+  get friendCount() { return this.friends.size; }
+
+  // ── call / summon friend / assist ──
   private call() {
     const E = this.ents(); if (!E) { this.env.say('No warden is near enough to hear you.', '#b8ffc0'); return; }
     const pp = this.env.player.object.position, s = this.env.soul();
-    if (s <= -0.3) { this.env.say('The wardens will not answer a darkened soul.', '#c08cff'); return; }
-    let best: ReturnType<EntsApi['list']>[number] | null = null, bd = 90;
-    for (const w of E.list()) { const d = w.pos.distanceTo(pp), awake = typeof w.awake === 'number' ? w.awake : w.awake ? 1 : 0; if (d < bd && (s >= 0.3 || awake > 0.4)) { best = w; bd = d; } }
-    if (!best) { this.env.say('No warden is near enough, or awake enough, to answer.', '#b8ffc0'); return; }
+    if (s <= -0.3 && this.friends.size === 0) { this.env.say('The wardens will not answer a darkened soul.', '#c08cff'); return; }
+    const all = E.list();
+    let best: ReturnType<EntsApi['list']>[number] | null = null, bd = 95;
+    for (const w of all) {
+      const d = w.pos.distanceTo(pp);
+      const awake = typeof w.awake === 'number' ? w.awake : w.awake ? 1 : 0;
+      const isFriend = this.friends.has(w.id);
+      if (d < bd && (isFriend || s >= 0.3 || awake > 0.4)) { best = w; bd = d; }
+    }
+    // If no nearby warden answered, summon a Sworn Friend Grovewarden from anywhere across the forest!
+    if (!best && this.friends.size > 0) {
+      const friendWarden = all.find((w) => this.friends.has(w.id));
+      if (friendWarden && E.summonFriend?.(friendWarden.id, pp)) {
+        this.rally = { id: friendWarden.id, t: 105, kind: friendWarden.kind };
+        forest.notify('warden-call', pp, { id: friendWarden.id, kind: friendWarden.kind, summoned: true }, 'player');
+        this.env.say(`SWORN FRIEND ${friendWarden.kind.replace(/-/g, ' ').toUpperCase()} SUMMONED TO BATTLE · TAP [Y] FOR ASSIST`, '#fde68a');
+        this.env.audio.play('rumble', pp, { gain: 0.75, rate: 0.65 });
+        return;
+      }
+    }
+    if (!best) { this.env.say('No warden is near — help a defending Grovewarden to earn a Sworn Friend summon!', '#b8ffc0'); return; }
     E.follow(best.id, this.env.player.object);
     this.rally = { id: best.id, t: 90, kind: best.kind };
     forest.notify('warden-call', pp, { id: best.id, kind: best.kind }, 'player');
@@ -412,7 +462,7 @@ export class Wardens {
     this.clock += dt; this.assistCd -= dt; this.wardT -= dt; this.groveT -= dt; this.petalArmed -= dt; this.diveArmed -= dt; this.lumenT -= dt;
     const env = this.env, pl = env.player, pp = pl.object.position;
     // the controller: X strike, Y surge, A jump, B dash, RT fire
-    const pad = navigator.getGamepads ? navigator.getGamepads()?.[0] : null;
+    const pad = navigator.getGamepads ? ([...navigator.getGamepads()].find((g) => g && g.connected !== false) ?? null) : null;
     if (pad) {
       const map: [number, ComboKey][] = [[2, 'strike'], [3, 'surge'], [0, 'jump'], [1, 'dash'], [7, 'fire']];
       for (const [b, k] of map) { const on = !!pad.buttons[b]?.pressed; if (on && !this.padPrev[b]) this.pressed.add(k); this.padPrev[b] = on; }

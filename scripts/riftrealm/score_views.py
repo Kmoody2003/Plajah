@@ -28,6 +28,8 @@ def fit(img, H=900, W=600):
 def main(rd, ref, od):
     os.makedirs(od, exist_ok=True); res = {}
     for v in ('front', 'side', 'back'):
+        if not os.path.isfile(f'{ref}/{v}.png') or not os.path.isfile(f'{rd}/{v}.png'):
+            continue
         a = fit(Image.open(f'{ref}/{v}.png')); b = fit(Image.open(f'{rd}/{v}.png'))
         ma, mb = a[:, :, 3] > 127, b[:, :, 3] > 127
         # translation only, chosen by best overlap: centring each figure on its own bbox let a prop (a dagger held
@@ -61,7 +63,8 @@ def main(rd, ref, od):
         xor = np.zeros_like(dl); xor[ma & ~mb] = (255, 60, 60); xor[mb & ~ma] = (60, 120, 255); xor[inter] = (70, 70, 70)
         bg = lambda im: (im[:, :, :3] * (im[:, :, 3:4] / 255.) + np.array([40, 40, 48]) * (1 - im[:, :, 3:4] / 255.)).astype(np.uint8)
         Image.fromarray(np.hstack([bg(a), bg(b), dl, xor])).save(f'{od}/{v}_delta.png')
-    res['overall'] = round(float(np.mean([res[v]['score'] for v in ('front', 'side', 'back')])), 3)
+    scored = [v for v in ('front', 'side', 'back') if v in res]
+    res['overall'] = round(float(np.mean([res[v]['score'] for v in scored])), 3) if scored else 0.0
     json.dump(res, open(f'{od}/scores.json', 'w'), indent=1); print(json.dumps(res))
 
 

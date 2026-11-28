@@ -17,6 +17,7 @@ type N = any;
 export interface TreeSpot { x: number; y: number; z: number; yaw: number; species: number; scale: number }
 
 interface Bucket {
+  species: number;
   near: { wood: THREE.InstancedMesh; leaves: THREE.InstancedMesh; cables: THREE.InstancedMesh | null };
   mid: { wood: THREE.InstancedMesh; leaves: THREE.InstancedMesh; cables: THREE.InstancedMesh | null };
   far: THREE.InstancedMesh | null;
@@ -75,6 +76,7 @@ export class Forest {
         };
         full.wood.computeBoundingSphere(); full.leaves.computeBoundingSphere();
         this.buckets.push({
+          species: si,
           near: { wood: make(full.wood, mats.wood, true), leaves: make(full.leaves, mats.leaves, true), cables: full.cables && mats.cables ? make(full.cables, mats.cables, false) : null },
           // mid range: coarse wood, but the full leaf set (cards are cheap; a thin crown reads as a dead tree)
           mid: { wood: make(low.wood, mats.wood, false, 'mid'), leaves: make(full.leaves, mats.leaves, true, 'mid'), cables: full.cables && mats.cables ? make(full.cables, mats.cables, false, 'mid') : null },
@@ -107,21 +109,29 @@ export class Forest {
     return out;
   }
 
-  /** Bake every variant's impostor (once, after the renderer is up). Without it, far trees stay on the coarse mesh. */
+  /** Bake one shared impostor atlas per species (~5–7x faster & 6x less VRAM than baking every seed variant). */
   async bake(renderer: THREE.WebGPURenderer, light: { environment?: THREE.Texture | null; envIntensity?: number } = {}) {
     await texturesReady();
+    const speciesAtlas = new Map<number, { atlas: ImpostorAtlas; mat: THREE.MeshBasicNodeMaterial }>();
     for (const b of this.buckets) {
-      const one = (geo: THREE.BufferGeometry, mat: THREE.Material) => {
-        const g = geo.clone(), n = g.getAttribute('position').count, a = new Float32Array(n * 4);
-        for (let i = 0; i < n; i++) a[i * 4 + 3] = 1;                     // still air: aInst = (0, 0, 0, 1)
-        g.setAttribute('aInst', new THREE.BufferAttribute(a, 4));
-        return new THREE.Mesh(g, mat);
-      };
-      const parts = [one(b.full.wood, b.mats.wood), one(b.full.leaves, b.mats.leaves)];
-      if (b.full.cables && b.mats.cables) parts.push(one(b.full.cables, b.mats.cables));
-      const atlas = await bakeImpostor(renderer, parts, { frames: this.o.lowTier ? 5 : 6, size: this.o.lowTier ? 768 : 1024, ...light });
-      b.atlas = atlas;
-      b.far = impostorMesh(atlas, b.spots.length, impostorMaterial(atlas, { brightness: light.environment ? 1.0 : 1.3, flipV: true }));
+      let shared = speciesAtlas.get(b.species);
+      if (!shared) {
+        const one = (geo: THREE.BufferGeometry, mat: THREE.Material) => {
+          const g = geo.clone(), n = g.getAttribute('position').count, a = new Float32Array(n * 4);
+          for (let i = 0; i < n; i++) a[i * 4 + 3] = 1;                     // still air: aInst = (0, 0, 0, 1)
+          g.setAttribute('aInst', new THREE.BufferAttribute(a, 4));
+          return new THREE.Mesh(g, mat);
+        };
+        const parts = [one(b.full.wood, b.mats.wood), one(b.full.leaves, b.mats.leaves)];
+        if (b.full.cables && b.mats.cables) parts.push(one(b.full.cables, b.mats.cables));
+        const atlas = await bakeImpostor(renderer, parts, { frames: 4, size: this.o.lowTier ? 384 : 512, ...light });
+        const mat = impostorMaterial(atlas, { brightness: light.environment ? 1.0 : 1.3, flipV: true });
+        shared = { atlas, mat };
+        speciesAtlas.set(b.species, shared);
+        await new Promise<void>((r) => setTimeout(r, 0));
+      }
+      b.atlas = shared.atlas;
+      b.far = impostorMesh(shared.atlas, b.spots.length, shared.mat);
       this.group.add(b.far);
     }
     this.t = 1;

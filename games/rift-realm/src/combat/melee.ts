@@ -523,7 +523,7 @@ export class Melee {
     if (this.exec) this.updateExecution(dt);
 
     // guard: hold X / mouse back button / gamepad R3; the moment it goes up is the parry window
-    const pad = navigator.getGamepads?.()[0];
+    const pad = [...(navigator.getGamepads?.() ?? [])].find((g) => g && g.connected !== false) ?? null;
     const padBlock = !!pad?.buttons[11]?.pressed;
     const want = p.enabled && !p.downed && !this.exec && this.stunT <= 0 && this.guard > 0 && (p.keys.has('KeyX') || this.mouseBlock || padBlock);
     if (want && !this.blocking && (!this.move || this.moveT > this.move.startup + this.move.active)) {
@@ -535,8 +535,8 @@ export class Melee {
     } else this.guard = Math.min(C.guard, this.guard + C.guardRegen * dt);
     p.blocking = this.blocking;
 
-    // heavy by holding light (F / E / gamepad X)
-    const holding = p.enabled && (p.keys.has('KeyF') || p.keys.has('KeyE') || !!pad?.buttons[2]?.pressed);
+    // heavy by holding light (F / gamepad X)
+    const holding = p.enabled && (p.keys.has('KeyF') || !!pad?.buttons[2]?.pressed);
     if (holding) { this.holdT += dt; if (this.holdT > 0.32 && !this.holdFired) { this.holdFired = true; this.press('H'); } }
     else { this.holdT = 0; this.holdFired = false; }
 

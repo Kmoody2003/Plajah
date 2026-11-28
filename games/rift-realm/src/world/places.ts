@@ -30,6 +30,12 @@ export interface PlaceOut {
   glows: THREE.Vector3[];
 }
 
+/** Exact doorway opening angles (rad, matching shell()'s x=sin(a), z=cos(a) ring) aligned straight along a walkway from (ax, az) to (bx, bz). */
+export function walkwayTrunkGapAngles(ax: number, az: number, bx: number, bz: number): [number, number] {
+  const a = Math.atan2(bx - ax, bz - az);
+  return [a, a + Math.PI];
+}
+
 export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
   const terrain = T;
   const out: PlaceOut = { trees: [], clear: [], models: [], glows: [] };
@@ -299,14 +305,14 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
     const m = new THREE.MeshStandardNodeMaterial({ map: bm.map, normalMap: bm.normalMap, roughness: 0.92, color: 0x8d8a84, side: THREE.DoubleSide });
     m.emissiveNode = bm.emissiveNode;
     const mesh = new THREE.Mesh(g, m); mesh.castShadow = !lo; mesh.receiveShadow = true; group.add(mesh);
-    // collision: wall segments round the ring, skipping the gaps
-    const segs = 40;
+    // collision: wall segments round the ring, skipping the gaps (64 segments for clean doorway edges)
+    const segs = 64;
     for (let i = 0; i < segs; i++) {
       const a = ((i + 0.5) / segs) * Math.PI * 2;
       const runs: [number, number][] = []; let s0 = y0;
       for (const g2 of gaps.filter((g3) => Math.abs(Math.atan2(Math.sin(a - g3.a), Math.cos(a - g3.a))) < g3.w).sort((p, q) => p.y0 - q.y0)) { if (g2.y0 > s0) runs.push([s0, g2.y0]); s0 = Math.max(s0, g2.y1); }
       if (s0 < y1) runs.push([s0, y1]);
-      for (const [ya, yb] of runs) kit.box(B.invisible, (2 * Math.PI * r) / segs + 0.3, yb - ya, 1.2, x + Math.sin(a) * (r + 0.4), (ya + yb) / 2, z + Math.cos(a) * (r + 0.4), a + Math.PI / 2, { shadow: false });
+      for (const [ya, yb] of runs) kit.box(B.invisible, (2 * Math.PI * r) / segs + 0.25, yb - ya, 1.2, x + Math.sin(a) * (r + 0.4), (ya + yb) / 2, z + Math.cos(a) * (r + 0.4), a + Math.PI / 2, { shadow: false });
     }
   }
 
@@ -316,15 +322,15 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
     const yTop = H(north.x, north.z), yBot = H(south.x, south.z);
     const yCrown = yTop + 34;
     shell(t.x, t.z, R0, yBot - 3, yCrown, [
-      { a: Math.PI, w: 0.2, y0: yTop - 0.5, y1: yTop + 4.2 },     // the plateau door (north)
-      { a: 0, w: 0.2, y0: yBot - 0.5, y1: yBot + 4.6 },           // the vale door (south)
+      { a: Math.PI, w: 0.28, y0: yTop - 0.5, y1: yTop + 4.8 },    // the plateau door (north, aligned with entry bridge)
+      { a: 0, w: 0.28, y0: yBot - 0.5, y1: yBot + 5.0 },          // the vale door (south, aligned toward mire boardwalk)
       { a: 0.5, w: 0.08, y0: yBot + 18, y1: yBot + 21 },          // windows over the vale and the falls
       { a: -0.6, w: 0.08, y0: yTop + 6, y1: yTop + 9 },
       { a: 1.9, w: 0.07, y0: yTop + 16, y1: yTop + 19 },
       { a: 0.1, w: 0.1, y0: yTop + 22, y1: yTop + 26 },           // the top balcony's opening
     ]);
-    // the crown: a great oak's crown grown on top, and the trunk's buttress roots on the vale side
-    out.trees.push({ x: t.x, y: yCrown - 62 * 0.42, z: t.z, yaw: 0.3, species: 4, scale: 0.85 });
+    // the crown: a great oak's crown grown high on top so its trunk stays above the upper hollow bunker ring
+    out.trees.push({ x: t.x, y: yCrown - 16, z: t.z, yaw: 0.3, species: 4, scale: 0.85 });
     // inside: the floor in the vale, a spiral ramp up the wall, bunker rings at the plateau door and above
     K.discPave(t.x, t.z, R0 - 0.2, yBot, 40);
     const r0 = R0 - 4.2, r1 = R0 - 0.6, turnRise = 9, turns = (yTop + 24 - yBot) / turnRise, segN = Math.ceil(turns * 28);
@@ -563,32 +569,43 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
           }
         }
         for (const s of [-1, 1]) kit.box(B.invisible, 0.2, 1.1, L, (ax + bx) / 2 + Math.cos(yaw) * s * 1.35, plankGeoY((ax + bx) / 2, (az + bz) / 2) + 0.6, (az + bz) / 2 - Math.sin(yaw) * s * 1.35, yaw, { shadow: false });
-        out.clear.push([(ax + bx) / 2, (az + bz) / 2, 3]);
+        // Clear trees along the ENTIRE boardwalk segment every 6 m so no forest trunks ever grow through a walkway
+        const clearSteps = Math.max(2, Math.ceil(L / 6));
+        for (let c = 0; c <= clearSteps; c++) {
+          const ct = c / clearSteps;
+          out.clear.push([ax + (bx - ax) * ct, az + (bz - az) * ct, 7.0]);
+        }
       }
     }
-    // stilt huts and the terminal platforms at the junctions
+    // stilt huts and the terminal platforms at the junctions (huts placed cleanly to the outer side, off walkway entry lines)
     const mireConsole = buildSubdCarvedConsole(1.25, 1.08, 0.65, lo);
-    for (const [x, z, yaw] of [[-330, 620, 0.3], [-450, 700, 2.0], [-240, 730, -0.5], [-160, 640, 1.2], [-250, 500, 0.8]] as const) {
-      const d = K.deck(x, z, deckY + 0.2, 5, { trunk: false, sides: 6, open: [0, 1, 2, 3, 4, 5].map((k) => k * 1.047), lamp: true });
+    for (const [x, z, yaw] of [[-330, 620, 0.65], [-450, 700, 2.2], [-240, 730, -0.4], [-160, 640, 1.2], [-250, 500, 1.55]] as const) {
+      const d = K.deck(x, z, deckY + 0.2, 5.6, { trunk: false, sides: 6, open: [0, 1, 2, 3, 4, 5].map((k) => k * 1.047), lamp: true });
       void d;
-      K.hut(x + Math.sin(yaw) * 1.5, deckY + 0.2, z + Math.cos(yaw) * 1.5, yaw, 3.6, 3, 2.6);
+      K.hut(x + Math.sin(yaw) * 2.2, deckY + 0.2, z + Math.cos(yaw) * 2.2, yaw, 3.4, 2.8, 2.6);
       const cg = mireConsole.clone();
-      kit.place(cg, x - Math.sin(yaw) * 2.5, deckY + 0.2, z - Math.cos(yaw) * 2.5, yaw);
+      kit.place(cg, x - Math.sin(yaw) * 3.0, deckY + 0.2, z - Math.cos(yaw) * 3.0, yaw);
       kit.add(K.mats.metal, cg, { tpm: 0.8 });
-      K.screen(x - Math.sin(yaw) * 2.5, deckY + 1.9, z - Math.cos(yaw) * 2.5, yaw, 1.6, 1.0, ['MIRE NODE', 'FLOW 0.4', 'LINK OK'], '#5dffb0');
-      out.clear.push([x, z, 8]);
+      K.screen(x - Math.sin(yaw) * 3.0, deckY + 1.9, z - Math.cos(yaw) * 3.0, yaw, 1.6, 1.0, ['MIRE NODE', 'FLOW 0.4', 'LINK OK'], '#5dffb0');
+      out.clear.push([x, z, 10]);
       glowAt(x, deckY + 2, z);
     }
-    // the walkway through a giant trunk
+    // the walkway through a giant trunk: openings mathematically aligned along boardwalk [-250, 500] → [-300, 570]
     {
       const x = -275, z = 535;
-      shell(x, z, 5.5, H(x, z) - 2, deckY + 18, [{ a: Math.atan2(-50, -70) + Math.PI, w: 0.35, y0: deckY - 1, y1: deckY + 3.4 }, { a: Math.atan2(-50, -70), w: 0.35, y0: deckY - 1, y1: deckY + 3.4 }]);
-      out.trees.push({ x, y: deckY + 18 - 62 * 0.36 * 0.45, z, yaw: 1, species: 4, scale: 0.45 });
+      const [gA, gB] = walkwayTrunkGapAngles(-250, 500, -300, 570);
+      shell(x, z, 5.5, H(x, z) - 2, deckY + 18, [
+        { a: gA, w: 0.46, y0: deckY - 1, y1: deckY + 4.4 },
+        { a: gB, w: 0.46, y0: deckY - 1, y1: deckY + 4.4 },
+      ]);
+      // Crown starts above the hollow archway ceiling so no inner trunk hangs down over the walkway
+      out.trees.push({ x, y: deckY + 14.5, z, yaw: 1, species: 4, scale: 0.45 });
+      out.clear.push([x, z, 12]);
       K.lamp(x + 3, deckY + 2.8, z - 4, 0xffb050, 16);
     }
-    // mangroves and willows crowd the water
+    // mangroves and willows crowd the water, staying well clear of all boardwalk pathways
     for (let k = 0; k < (lo ? 50 : 120); k++) {
-      const [x, z] = ringOf(m.x, m.z, 6, 170); if (walks.some((w) => polyNear(w, x, z).d < 4)) continue;
+      const [x, z] = ringOf(m.x, m.z, 6, 170); if (walks.some((w) => polyNear(w, x, z).d < 7.5)) continue;
       out.trees.push({ x, y: H(x, z) - 0.2, z, yaw: R() * 6.28, species: R() < 0.7 ? 3 : 1, scale: 0.8 + R() * 0.6 });
     }
     out.clear.push([m.x, m.z, 6]);

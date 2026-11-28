@@ -21,7 +21,7 @@ export const RR_ACTIONS: ActionDef[] = [
   { id: 'jump', label: 'Jump / double jump / swim up / wall-kick', group: 'Movement', canonical: K('Space'), defaults: [K('Space')], padCanonical: 0 },
   { id: 'dash', label: 'Dash / swim surge', group: 'Movement', canonical: K('ShiftLeft'), defaults: [K('ShiftLeft')], padCanonical: 1 },
   { id: 'crouch', label: 'Crouch / dive / drop off cliff', group: 'Movement', canonical: K('KeyC'), defaults: [K('KeyC')], padCanonical: 13 },
-  { id: 'grapple', label: 'Grappling hook (Stalker / Sylva)', group: 'Movement', canonical: K('KeyE'), defaults: [K('KeyE')] },
+  { id: 'grapple', label: 'Grappling hook (Stalker / Sylva)', group: 'Movement', canonical: K('KeyE'), defaults: [K('KeyE')], padCanonical: 4 },
   // combat
   { id: 'fire', label: 'Fire (fists: light attack)', group: 'Combat', canonical: M(0), defaults: [M(0)], padCanonical: 7 },
   { id: 'melee', label: 'Melee strike (fists: heavy)', group: 'Combat', canonical: M(2), defaults: [M(2)] },
@@ -49,7 +49,7 @@ export const RR_ACTIONS: ActionDef[] = [
   { id: 'quick2', label: 'Quick slot 2', group: 'Forest', canonical: K('Digit7'), defaults: [K('Digit7')] },
   { id: 'quick3', label: 'Quick slot 3', group: 'Forest', canonical: K('Digit8'), defaults: [K('Digit8')] },
   { id: 'quick4', label: 'Quick slot 4', group: 'Forest', canonical: K('Digit9'), defaults: [K('Digit9')] },
-  { id: 'view', label: '1st / 3rd person', group: 'Other', canonical: K('KeyV'), defaults: [K('KeyV')], padCanonical: 8 },
+  { id: 'view', label: '1st / 3rd person (hold View: Armory)', group: 'Other', canonical: K('KeyV'), defaults: [K('KeyV')], padCanonical: 8 },
   { id: 'realm', label: 'Switch realm', group: 'Other', canonical: K('KeyB'), defaults: [K('KeyB')] },
   { id: 'skip', label: 'Skip song', group: 'Other', canonical: K('KeyN'), defaults: [K('KeyN')] },
 ];

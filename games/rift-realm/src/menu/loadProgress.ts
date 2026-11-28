@@ -102,9 +102,13 @@ export class LoadScreen {
     const frac = (this.done + this.cur.w * Math.max(0, Math.min(1, f))) / TOTAL;
     if (frac > this.shown + 0.002) {
       // keep the crawl going past the real value
-      const left = Math.max(300, (this.times[this.cur.id] ?? this.cur.guess) * (1 - f));
+      const curId = this.cur.id, curW = this.cur.w;
+      const left = Math.max(300, (this.times[curId] ?? this.cur.guess) * (1 - f));
       this.setBar(frac, 160);
-      requestAnimationFrame(() => this.setBar(Math.max(frac, (this.done + this.cur!.w * 0.97) / TOTAL), left));
+      requestAnimationFrame(() => {
+        if (!this.cur || this.cur.id !== curId) return;
+        this.setBar(Math.max(frac, (this.done + curW * 0.97) / TOTAL), left);
+      });
     }
   }
 

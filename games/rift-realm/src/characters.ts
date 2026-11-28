@@ -270,7 +270,17 @@ export const STRUCTURE_ROSTER: readonly EnvAssetEntry[] = [
   { id: 'struct_gargoyle_column', name: 'Carved Gargoyle Stone Column', sub: 'sunken-cathedral', heightM: 7.5, url: '/games/rift-realm/assets/structures/struct_gargoyle_column.glb' },
 ];
 
-/** Load any additional Vesselbound roster character (e.g. 'lumen', 'nyx', bosses, mounts) on demand. */
+const inFlightCharacters = new Map<string, Promise<CharacterAsset | null>>();
+
+const VESSEL_ASSET_MAP: Record<string, { fileId: string; key: 'stalker' | 'paladin' | 'seraph' | 'sylva' | 'pyre' }> = {
+  aegis: { fileId: 'robot_paladin', key: 'paladin' },
+  stalker: { fileId: 'void_stalker', key: 'stalker' },
+  seraph: { fileId: 'seraph_9', key: 'seraph' },
+  sylva: { fileId: 'sylva', key: 'sylva' },
+  pyre: { fileId: 'pyre', key: 'pyre' },
+};
+
+/** Load any Vesselbound roster character (e.g. 'lumen', 'nyx', bosses, mounts, wardens) with in-flight deduplication. */
 export async function loadCharacterAsset(id: string): Promise<CharacterAsset | null> {
   if (id === 'void_stalker' && assets.stalker) return assets.stalker;
   if (id === 'robot_paladin' && assets.paladin) return assets.paladin;
@@ -278,11 +288,41 @@ export async function loadCharacterAsset(id: string): Promise<CharacterAsset | n
   if (id === 'sylva' && assets.sylva) return assets.sylva;
   if (id === 'pyre' && assets.pyre) return assets.pyre;
   if (id in assets.extra) return assets.extra[id];
-  const a = await load(`${id}.glb`);
-  const meta = ROSTER_BY_ID[id];
-  if (a && (!meta || meta.clipsJson)) await videoClips(a, id);
-  assets.extra[id] = a;
-  return a;
+  const existing = inFlightCharacters.get(id);
+  if (existing) return existing;
+  const job = (async () => {
+    const a = await load(`${id}.glb`);
+    const meta = ROSTER_BY_ID[id];
+    if (a && (!meta || meta.clipsJson)) await videoClips(a, id);
+    if (id === 'void_stalker') assets.stalker = a;
+    else if (id === 'robot_paladin') assets.paladin = a;
+    else if (id === 'seraph_9') assets.seraph = a;
+    else if (id === 'sylva') assets.sylva = a;
+    else if (id === 'pyre') assets.pyre = a;
+    else assets.extra[id] = a;
+    return a;
+  })().finally(() => { inFlightCharacters.delete(id); });
+  inFlightCharacters.set(id, job);
+  return job;
+}
+
+/** Load only the single active playable vessel during boot (~16 MB instead of ~81 MB for all 5). */
+export async function preloadVessel(vesselId: string): Promise<CharacterAsset | null> {
+  const entry = VESSEL_ASSET_MAP[vesselId] ?? VESSEL_ASSET_MAP.aegis;
+  return loadCharacterAsset(entry.fileId);
+}
+
+/** Gently trickle-load the remaining playable vessels 1 at a time after gameplay starts so Free Roam swaps stay instant. */
+export function trickleRemainingVessels(activeVesselId: string) {
+  if (typeof window === 'undefined') return;
+  const rest = Object.keys(VESSEL_ASSET_MAP).filter((id) => id !== activeVesselId);
+  let idx = 0;
+  const next = () => {
+    const id = rest[idx++];
+    if (!id) return;
+    void preloadVessel(id).finally(() => { window.setTimeout(next, 1400); });
+  };
+  window.setTimeout(next, 4500);
 }
 
 async function load(file: string): Promise<CharacterAsset | null> {
@@ -327,19 +367,12 @@ async function videoClips(asset: CharacterAsset | null, id: string) {
 }
 
 export async function preloadCharacters() {
-  [assets.stalker, assets.paladin, assets.seraph, assets.sylva, assets.pyre] = await Promise.all([
-    load('void_stalker.glb'),
-    load('robot_paladin.glb'),
-    load('seraph_9.glb'),
-    load('sylva.glb'),
-    load('pyre.glb'),
-  ]);
   await Promise.all([
-    videoClips(assets.stalker, 'void_stalker'),
-    videoClips(assets.paladin, 'robot_paladin'),
-    videoClips(assets.seraph, 'seraph_9'),
-    videoClips(assets.sylva, 'sylva'),
-    videoClips(assets.pyre, 'pyre'),
+    loadCharacterAsset('void_stalker'),
+    loadCharacterAsset('robot_paladin'),
+    loadCharacterAsset('seraph_9'),
+    loadCharacterAsset('sylva'),
+    loadCharacterAsset('pyre'),
   ]);
 }
 
@@ -437,7 +470,8 @@ export class CharacterRig {
     this.root.add(model);
     this.mixer = new THREE.AnimationMixer(model);
     for (const c of asset.clips) this.actions.set(c.name.toLowerCase(), this.mixer.clipAction(c));
-    const idle = this.has('aim_idle') ? 'aim_idle' : 'idle';
+    // Upright standing idle (never force the twisted/slanted rifle-aim stance as the default resting idle)
+    const idle = this.has('idle') ? 'idle' : this.has('hero_idle') ? 'hero_idle' : 'aim_idle';
     for (const name of [idle, 'walk', 'run', 'strafe_left', 'strafe_right', 'sprint', 'walk_back', 'run_back']) {
       const act = this.actions.get(name);
       if (!act) continue;
@@ -639,8 +673,14 @@ export class CharacterRig {
   private _gUp = new THREE.Vector3(); private _gFwd = new THREE.Vector3(); private _gSide = new THREE.Vector3(); private _gT = new THREE.Vector3();
   /** Glide posture: the whole body pitched about the hips toward prone, then the limbs laid along it (wingsuit). */
   private applyGlidePose(dt: number) {
-    this.gw += (this.glidePose.w - this.gw) * Math.min(1, dt * (this.glidePose.w > this.gw ? 4 : 6));
-    this.gp += (this.glidePose.pitch - this.gp) * Math.min(1, dt * 3.5);
+    this.gw += (this.glidePose.w - this.gw) * Math.min(1, dt * (this.glidePose.w > this.gw ? 4 : 8));
+    this.gp += (this.glidePose.pitch - this.gp) * Math.min(1, dt * 4.5);
+    if (this.gw < 0.005) {
+      this.gw = 0;
+      this.model.quaternion.identity();
+      this.model.position.set(0, 0, 0);
+      return;
+    }
     const th = this.gp * this.gw;
     // body pitch about the hips (rig space: +Z forward, +X the figure's left): the head goes forward, the feet back
     // pivot at the chest: the prone body stays up near where the standing figure's shoulders were (the camera's line)

@@ -100,7 +100,7 @@ body:has(> .rr-menu, > .rr-load) > :not(.rr-menu, .rr-load, .rr-cp, .rr-cp-toast
 @keyframes rr-swap-r { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
 .rr-go { padding: 11px 22px; border: 1px solid var(--gold); background: linear-gradient(90deg, #d9b26a26, #d9b26a08); font-size: 13px; letter-spacing: .24em; text-transform: uppercase; color: #fff; transition: box-shadow .2s, background .2s; }
 .rr-go:hover { box-shadow: 0 0 20px #d9b26a44; background: #d9b26a33; }
-.rr-cards { position: absolute; left: 0; right: 0; bottom: 54px; display: flex; gap: 14px; padding: 6px 4vw; overflow-x: auto; scrollbar-width: none; }
+.rr-cards { position: absolute; left: 0; right: 0; bottom: 54px; display: flex; gap: 14px; padding: 6px 4vw; overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; scrollbar-width: none; }
 .rr-card { position: relative; flex: 0 0 auto; width: 210px; height: 118px; padding: 0; overflow: hidden; border: 1px solid #ffffff22; background: #0b0912; transition: transform .25s, border-color .25s, box-shadow .25s; }
 .rr-card img { width: 100%; height: 100%; object-fit: cover; filter: brightness(.6) saturate(.8); transition: filter .25s, transform .4s; }
 .rr-card span { position: absolute; left: 10px; right: 10px; bottom: 8px; font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; text-shadow: 0 1px 4px #000; }

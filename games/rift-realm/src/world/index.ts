@@ -50,8 +50,8 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
   K.finish();
   placed.clear.push(...K.clears);
 
-  // ── a coarse mask of where the forest keeps off: trails, the rivers, the places (4 m cells) ──
-  const MC = 4, MN = Math.round((HALF * 2) / MC);
+  // ── a coarse mask of where the forest keeps off: trails, the rivers, the places (6 m cells: 2.25x faster CPU bake) ──
+  const MC = 6, MN = Math.round((HALF * 2) / MC);
   const mask = new Float32Array(MN * MN);           // distance to the nearest trail/river edge/place edge (capped at 12)
   const inPlace = new Uint8Array(MN * MN);          // 1 inside a place's footprint (no grass through decks and paving)
   {
@@ -166,12 +166,20 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
     return [0.55 * path, 0.85 * Math.max(0.3, path)];
   };
 
-  // ── structures with a sheet-built model, placed as art ──
-  {
-    const loader = new GLTFLoader(), cache = new Map<string, Promise<THREE.Object3D>>();
-    const get = (f: string) => { let p = cache.get(f); if (!p) { p = new Promise((res, rej) => loader.load(MODELS + f, (g) => res(g.scene), undefined, rej)); cache.set(f, p); } return p; };
-    for (const m of placed.models) {
-      get(m.file).then((src) => {
+  // ── structures with a sheet-built model, streamed lazily by camera proximity so distant GLBs never stall boot ──
+  const pendingModels = placed.models.map((m) => ({ m, loaded: false }));
+  const modelLoader = new GLTFLoader(), modelCache = new Map<string, Promise<THREE.Object3D>>();
+  let activeModelLoads = 0;
+  const getModel = (f: string) => { let p = modelCache.get(f); if (!p) { p = new Promise((res, rej) => modelLoader.load(MODELS + f, (g) => res(g.scene), undefined, rej)); modelCache.set(f, p); } return p; };
+  const streamModelsNear = (at: THREE.Vector3) => {
+    if (activeModelLoads >= 2) return;
+    for (const item of pendingModels) {
+      if (item.loaded || activeModelLoads >= 2) continue;
+      const m = item.m;
+      if (Math.hypot(m.x - at.x, m.z - at.z) > 320) continue;
+      item.loaded = true;
+      activeModelLoads++;
+      getModel(m.file).then((src) => {
         const root = src.clone(true);
         const b0 = new THREE.Box3().setFromObject(root), k = m.h / Math.max(1e-3, b0.max.y - b0.min.y);
         root.scale.setScalar(k);
@@ -180,9 +188,10 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
         const pivot = new THREE.Group(); pivot.position.set(m.x, m.y ?? H(m.x, m.z), m.z); pivot.rotation.y = m.yaw; pivot.add(root);
         root.traverse((o) => { const mm = o as THREE.Mesh; if (mm.isMesh) { mm.castShadow = !lo; mm.receiveShadow = true; } });
         group.add(pivot);
-      }).catch(() => { /* not built yet: the spot keeps its colliders */ });
+      }).catch(() => { /* not built yet: the spot keeps its colliders */ })
+        .finally(() => { activeModelLoads = Math.max(0, activeModelLoads - 1); });
     }
-  }
+  };
 
   // ── a small pool of point lights handed to the lamps and glows nearest the camera ──
   const lampSpecs = K.lights;
@@ -220,6 +229,7 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
         if (pc.isPerspectiveCamera && pc.far < 1600) { pc.far = 1600; pc.updateProjectionMatrix(); }
       } else cam.copy(player);
       chunks.update(cam, dt);
+      streamModelsNear(cam);
       water.update(dt, cam, (view as THREE.Camera | null) ?? null, cycle?.wind() ?? 0.55, cycle?.state() ?? null);
       if ((lt += dt) > 0.4) {
         lt = 0;
@@ -249,9 +259,9 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
         console.info(`[wilds] compile profile: ${prof.length} objects, ${prof.reduce((t, p) => t + p[1], 0)} ms total`);
         for (const [n, ms] of prof.slice(0, 14)) console.info(`[wilds]   ${ms} ms ${n}`);
       }
-      const tc = performance.now(); console.info('[wilds] compiling');
-      try { await r.compileAsync(ctx.scene, camera); } catch (e) { console.warn('[wilds] precompile', e); }
-      console.info(`[wilds] compiled in ${Math.round(performance.now() - tc)} ms`);
+      // Pipeline compilation is deferred to main.ts's single unified warmFrame pass (after createPost sets up MRT/scaled targets)
+      // so we never compile ~173 shaders twice!
+      console.info('[wilds] sky & terrain prepared');
     },
   };
 }

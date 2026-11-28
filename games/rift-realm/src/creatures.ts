@@ -11,9 +11,8 @@
 import * as THREE from 'three/webgpu';
 import { simplifyIndex } from './batching';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { CreatureRig, loadRig, type RigTemplate } from './creatureRig';
-import { attribute, color, cos, dot, float, floor, fract, ivec2, max, mix, mod, positionLocal, sign, sin, smoothstep, texture, textureLoad, time, uniform, uv, vec3, vertexIndex } from 'three/tsl';
+import { attribute, color, cos, dot, float, max, mix, positionLocal, sign, sin, smoothstep, texture, time, uniform, uv, vec3 } from 'three/tsl';
 
 export type CreatureKind =
   | 'wolf' | 'mantis' | 'wasp' | 'deer' | 'bat'
@@ -65,6 +64,7 @@ const templates = new Map<CreatureKind, Template>();
 const pending = new Map<CreatureKind, CreatureBody[]>();
 const loading = new Set<CreatureKind>();
 const loader = new GLTFLoader();
+let cachedDeerAntler: { geo: THREE.BufferGeometry; mat: THREE.MeshStandardNodeMaterial } | null = null;
 
 /** Per-vertex regions: x = leg weight (0 at the hip → 1 at the foot), y = gait phase (cycle fraction),
  *  z = head (wolf/deer/mantis) or wing (wasp), w = tail (wolf/deer), raptor arm (mantis) or stinger (wasp). */
@@ -381,15 +381,20 @@ export class CreatureBody {
     this.skel = r;
     this.body.add(r.root);
     if (this.kind === 'deer') {
-      // the built antlers (they dropped out of the cut-out) ride on the head bone
+      // Shared antler geometry & material built ONCE per session (prevents WebGPU shader compile stutters on every deer spawn!)
       const sm = r.meshes[0] as THREE.SkinnedMesh;
       const head = sm.skeleton?.bones.findIndex((b) => b.name === 'head') ?? -1;
       if (head >= 0) {
-        const geo = sm.geometry.clone();
-        const { info } = regions('deer', geo);
-        const am = new THREE.MeshStandardNodeMaterial({ color: 0x1a3040, roughness: 0.4 });
-        am.emissiveNode = mix(color(0x40c8ff), color(0xffc060), smoothstep(float(0.35), float(1.0), uv().x)).mul(1.6);
-        const ant = new THREE.Mesh(antlers(info, geo), am);
+        if (!cachedDeerAntler) {
+          const geo = sm.geometry.clone();
+          const { info } = regions('deer', geo);
+          const antGeo = antlers(info, geo);
+          geo.dispose();
+          const antMat = new THREE.MeshStandardNodeMaterial({ color: 0x1a3040, roughness: 0.4 });
+          antMat.emissiveNode = mix(color(0x40c8ff), color(0xffc060), smoothstep(float(0.35), float(1.0), uv().x)).mul(1.6);
+          cachedDeerAntler = { geo: antGeo, mat: antMat };
+        }
+        const ant = new THREE.Mesh(cachedDeerAntler.geo, cachedDeerAntler.mat);
         ant.castShadow = true; ant.frustumCulled = false;
         ant.applyMatrix4(sm.skeleton.boneInverses[head]);
         sm.skeleton.bones[head].add(ant);
@@ -434,36 +439,12 @@ export class CreatureBody {
 }
 
 export function preloadCreatures(kinds: CreatureKind[]) {
-  for (const k of kinds) {
-    void loadRig(k);
-    if (k === 'wolf' || k === 'mantis' || k === 'wasp' || k === 'deer' || k === 'bat') load(k);
-  }
-}
-
-/** Skin a rig's clip on the CPU into a float texture of vertex positions (frames × vertices, row-major in a W-wide
- *  texture), in the rig mesh's own space mapped through `xf`. For instanced crowds that can't each carry a skeleton. */
-function bakeClip(rt: RigTemplate, clip: string, frames: number, xf: (v: THREE.Vector3) => void) {
-  const c = rt.clips.find((a) => a.name === clip);
-  if (!c) return null;
-  const scene = SkeletonUtils.clone(rt.scene);
-  let sm: THREE.SkinnedMesh | null = null;
-  scene.traverse((o) => { if (!sm && (o as THREE.SkinnedMesh).isSkinnedMesh) sm = o as THREE.SkinnedMesh; });
-  if (!sm) return null;
-  const mesh = sm as THREE.SkinnedMesh, nv = mesh.geometry.attributes.position.count, W = 1024;
-  const rows = Math.ceil((nv * frames) / W), data = new Float32Array(W * rows * 4);
-  const mixer = new THREE.AnimationMixer(scene); mixer.clipAction(c).play();
-  const v = new THREE.Vector3();
-  for (let f = 0; f < frames; f++) {
-    mixer.setTime((f / frames) * c.duration);
-    scene.updateMatrixWorld(true); mesh.skeleton.update();
-    for (let i = 0; i < nv; i++) {
-      mesh.getVertexPosition(i, v); xf(v);
-      data.set([v.x, v.y, v.z, 1], (f * nv + i) * 4);
-    }
-  }
-  const tex = new THREE.DataTexture(data, W, rows, THREE.RGBAFormat, THREE.FloatType);
-  tex.needsUpdate = true;
-  return { tex, frames, verts: nv, width: W, duration: c.duration };
+  // Trickle-load ONLY the rigged fauna GLBs (never double-fetch unrigged fallback GLBs alongside rigged ones!)
+  kinds.forEach((k, i) => {
+    const start = () => { void loadRig(k); };
+    if (typeof window === 'undefined') start();
+    else window.setTimeout(start, 600 + i * 320);
+  });
 }
 
 const lcg = (seed: number) => { let sd = seed; return () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; }; };
@@ -509,21 +490,6 @@ export class MothSwarm {
       this.mesh.frustumCulled = false;
       parent.add(this.mesh);
       this.update(0);
-      // the moth's skeleton (creatureRig.ts): its video-derived 'fly' clip, skinned on the CPU into a vertex-animation
-      // texture once, then played per instance (each at its own phase) so the swarm stays one instanced draw
-      loadRig('moth').then((rt) => {
-        const baked = rt && bakeClip(rt, 'fly', 16, (v) => v.set(v.x * k, (v.y + ty) * k, (v.z + tz) * k));
-        if (!baked) return;
-        const F = baked.frames, nv = baked.verts, W = baked.width;
-        const fi = fract(time.div(baked.duration).mul(1.6).add(attribute<'float'>('mph', 'float').mul(0.1))).mul(F);
-        const f0 = floor(fi), f1 = mod(f0.add(1), F), w = fract(fi);
-        const at = (f: THREE.Node<'float'>) => {
-          const i = f.toInt().mul(nv).add(vertexIndex.toInt());
-          return textureLoad(baked.tex, ivec2(i.mod(W), i.div(W))).xyz;
-        };
-        mat.positionNode = mix(at(f0), at(f1), w);
-        mat.needsUpdate = true;
-      });
     }).catch((err) => console.warn('[rift] moth failed to load', err));
   }
   private pos(o: { a: THREE.Vector3; r: number; h: number; w: number; ph: number }, t: number, out: THREE.Vector3) {

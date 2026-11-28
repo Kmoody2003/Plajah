@@ -7,8 +7,13 @@
 //   • Legs and arms are two-bone IK (law of cosines): knees bend forward, elbows back and out.
 //   • Actions are short timelines that drive crouch, torso pitch and the hand targets from idle and back to idle.
 import * as THREE from 'three/webgpu';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { loadCharacterAsset } from '../characters';
 import { ENT, buildEntModel, type EntModel } from './model';
 import { WARDENS, type Warden } from './wardens';
+
+/** Map a Warden id (e.g. 'ancient-oak') to its high-quality rigged character asset id ('ent_ancient_oak'). */
+export const wardenAssetId = (wardenId: string) => `ent_${wardenId.replace(/-/g, '_')}`;
 
 export type EntActKind = 'tend' | 'smash' | 'bless' | 'threaten';
 type Side = 'Left' | 'Right';
@@ -68,17 +73,36 @@ export class Ent {
   /** Which Grovewarden this is, and its size (a multiple of the 46 m body). */
   readonly warden: Warden;
   readonly scale: number;
+  /** Target real-world standing height in metres (36–44 m). */
+  readonly targetHeight: number;
+  /** High-quality sculpted & rigged GLB Grovewarden (replaces the stand-in procedural tree body once loaded). */
+  rigged = false;
+  private rigScene: THREE.Object3D | null = null;
+  private mixer: THREE.AnimationMixer | null = null;
+  private clipActs = new Map<string, THREE.AnimationAction>();
+  private idleAct: THREE.AnimationAction | null = null;
+  private walkAct: THREE.AnimationAction | null = null;
+  private activeOneShot: THREE.AnimationAction | null = null;
+  private rigBones = new Map<string, THREE.Object3D>();
+  private rigMoveW = 0;
+  private rigHeadYaw = 0;
+  private rigHeadPitch = 0;
+  private rigLoading: Promise<boolean> | null = null;
+  private proceduralDetached = false;
 
   constructor(seed: number, private ground: (x: number, z: number) => number, x: number, z: number, yaw: number, lo = false, warden: Warden = WARDENS[0]) {
     this.warden = warden;
     this.model = buildEntModel(seed, { lo, look: warden.look });
-    this.root = this.model.root;
+    this.root = new THREE.Group();
+    this.root.name = `ent-${warden.id}`;
     // measure the grown body (feet to crown top, standing pose) and size it to the warden's height, ±1 % per individual
-    this.root.updateMatrixWorld(true);
-    const grown = Math.max(1, new THREE.Box3().setFromObject(this.root).max.y);
+    this.model.root.updateMatrixWorld(true);
+    const grown = Math.max(1, new THREE.Box3().setFromObject(this.model.root).max.y);
     const jitter = 1 + (((seed * 9301 + 49297) % 233280) / 233280 - 0.5) * 0.02;
-    this.scale = (warden.height * jitter) / grown;
-    this.root.scale.setScalar(this.scale);
+    this.targetHeight = warden.height * jitter;
+    this.scale = this.targetHeight / grown;
+    this.model.root.scale.setScalar(this.scale);
+    this.root.add(this.model.root);
     this.maxSpeed *= this.scale;
     this.yaw = yaw;
     this.pos.set(x, ground(x, z), z);
@@ -90,6 +114,120 @@ export class Ent {
     this.feet = { Left: f('Left'), Right: f('Right') };
     this.t = seed * 3.1;
     this.update(0);
+  }
+
+  /** Load the sculpted, 58-bone rigged Grovewarden GLB + clip library and swap out the procedural stand-in. */
+  loadRiggedModel(): Promise<boolean> {
+    if (this.rigged) return Promise.resolve(true);
+    if (this.rigLoading) return this.rigLoading;
+    const assetId = wardenAssetId(this.warden.id);
+    this.rigLoading = loadCharacterAsset(assetId).then((asset) => {
+      if (!asset) return false;
+      const cloned = SkeletonUtils.clone(asset.scene);
+      cloned.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(cloned);
+      const rawH = Math.max(0.1, box.max.y - box.min.y);
+      const s = this.targetHeight / rawH;
+      cloned.scale.setScalar(s);
+      cloned.position.y = -box.min.y * s;
+      cloned.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh) {
+          m.castShadow = true;
+          m.receiveShadow = true;
+          m.frustumCulled = false;
+        }
+        if ((o as THREE.Bone).isBone) {
+          this.rigBones.set(o.name.replace(/^.*[:|]/, ''), o);
+        }
+      });
+
+      const mixer = new THREE.AnimationMixer(cloned);
+      this.clipActs.clear();
+      for (const c of asset.clips) {
+        this.clipActs.set(c.name.toLowerCase(), mixer.clipAction(c));
+      }
+
+      // Authentic titan locomotion: pure standing idle (never gun-aim) + heavy walk stride
+      const idle = this.clipActs.get('idle') ?? this.clipActs.get('hero_idle') ?? this.clipActs.get('combat_idle') ?? null;
+      const walk = this.clipActs.get('walk') ?? this.clipActs.get('run') ?? null;
+      if (idle) {
+        idle.setLoop(THREE.LoopRepeat, Infinity).play();
+        idle.setEffectiveWeight(1);
+        idle.timeScale = 0.42;
+      }
+      if (walk) {
+        walk.setLoop(THREE.LoopRepeat, Infinity).play();
+        walk.setEffectiveWeight(0);
+        walk.timeScale = 0.42;
+      }
+
+      this.rigScene = cloned;
+      this.mixer = mixer;
+      this.idleAct = idle;
+      this.walkAct = walk;
+      this.rigged = true;
+
+      // Replace stand-in procedural tree body cleanly so only the sculpted Grovewarden renders
+      if (!this.proceduralDetached) {
+        this.proceduralDetached = true;
+        this.model.root.visible = false;
+        this.root.remove(this.model.root);
+        this.model.detail.length = 0;
+        this.model.dispose();
+      }
+      this.root.add(cloned);
+      mixer.update(0.016);
+      this.syncRigJoints();
+      console.info(`[ents] high-quality rigged Grovewarden mounted: ${assetId} (${this.targetHeight.toFixed(1)} m, ${this.rigBones.size} bones, ${this.clipActs.size} clips)`);
+      return true;
+    }).catch((err) => {
+      console.warn('[ents] rigged Grovewarden load failed, keeping procedural fallback:', assetId, err);
+      return false;
+    });
+    return this.rigLoading;
+  }
+
+  private playRigAction(kind: EntActKind, dur: number) {
+    if (!this.rigged || !this.mixer) return;
+    const candidates: Record<EntActKind, string[]> = {
+      smash: ['finisher', 'heavy_3', 'heavy_1', 'attack_1'],
+      tend: ['eat', 'pray', 'crouch_walk'],
+      bless: ['pray', 'hero_idle', 'idle'],
+      threaten: ['heavy_2', 'attack_3', 'attack_2', 'block'],
+    };
+    let act: THREE.AnimationAction | null = null;
+    for (const name of candidates[kind]) {
+      const a = this.clipActs.get(name);
+      if (a) { act = a; break; }
+    }
+    if (!act) return;
+    if (this.activeOneShot && this.activeOneShot !== act) this.activeOneShot.fadeOut(0.25);
+    act.reset().setLoop(THREE.LoopOnce, 1);
+    act.clampWhenFinished = false;
+    act.timeScale = Math.max(0.18, Math.min(1.2, act.getClip().duration / Math.max(0.5, dur)));
+    act.setEffectiveWeight(1);
+    act.fadeIn(0.28).play();
+    this.activeOneShot = act;
+  }
+
+  private syncRigJoints() {
+    this.root.updateMatrixWorld(true);
+    const getB = (name: string, out: THREE.Vector3, fx: number, fy: number, fz: number) => {
+      const b = this.rigBones.get(name);
+      if (b) { b.getWorldPosition(out); return; }
+      out.set(fx * this.scale, fy * this.scale, fz * this.scale).applyMatrix4(this.root.matrixWorld);
+    };
+    getB('Hips', this.joints.pelvis, 0, ENT.hipY, 0);
+    getB('Head', this.joints.head, 0, ENT.hipY + ENT.headY, 0);
+    getB('LeftUpLeg', this.joints.hip.Left, ENT.hipX, ENT.hipY, 0);
+    getB('RightUpLeg', this.joints.hip.Right, -ENT.hipX, ENT.hipY, 0);
+    getB('LeftLeg', this.joints.knee.Left, ENT.hipX, ENT.hipY - ENT.thigh, 0);
+    getB('RightLeg', this.joints.knee.Right, -ENT.hipX, ENT.hipY - ENT.thigh, 0);
+    getB('LeftFoot', this.joints.ankle.Left, ENT.hipX, ENT.ankleY, 0);
+    getB('RightFoot', this.joints.ankle.Right, -ENT.hipX, ENT.ankleY, 0);
+    getB('LeftHand', this.joints.hand.Left, ENT.shoulderX, ENT.hipY + 4, 2);
+    getB('RightHand', this.joints.hand.Right, -ENT.shoulderX, ENT.hipY + 4, 2);
   }
 
   /** Teleport (placement): feet planted under the new spot. */
@@ -106,8 +244,10 @@ export class Ent {
   start(kind: EntActKind, target: THREE.Vector3, move: string = kind) {
     if (this.act) return false;
     const T = TIMES[kind];
-    this.act = { kind, move, t: 0, dur: T[0] + T[1] + T[2] + T[3], target: target.clone(), fired: false };
+    const dur = T[0] + T[1] + T[2] + T[3];
+    this.act = { kind, move, t: 0, dur, target: target.clone(), fired: false };
     this.rooted = false;
+    this.playRigAction(kind, dur);
     this.onAct?.(kind, this.act.target, 'start', move);
     return true;
   }
@@ -206,13 +346,53 @@ export class Ent {
     this.pitch += (pitch - this.pitch) * (a?.kind === 'smash' ? 1 : k || 1);
     this.awake += ((this.rooted && !a ? 0 : 1) - this.awake) * clamp(dt * 0.6);
 
-    // ── the body: root on the ground between the feet, pelvis bobbing over the planted foot ──
+    // ── the body: root on the ground between the feet ──
     const gy = (this.feet.Left.pos.y + this.feet.Right.pos.y) / 2;
     this.bodyY += (gy - this.bodyY) * (dt ? clamp(dt * 2) : 1);
     this.pos.y = this.bodyY;
     this.root.position.copy(this.pos);
     this.root.rotation.set(0, this.yaw, 0);
     this.root.updateMatrix(); this.root.updateMatrixWorld(true);
+
+    // ── High-quality sculpted & rigged Grovewarden path (58-bone GLB + Forge clips) ──
+    if (this.rigged && this.mixer && this.rigScene) {
+      const wantMove = this.act ? 0 : clamp(this.speed / 0.85, 0, 1);
+      this.rigMoveW += (wantMove - this.rigMoveW) * (dt ? clamp(dt * 3.2) : 1);
+      const actWeight = this.activeOneShot && this.activeOneShot.isRunning() ? 1 : 0;
+      if (this.idleAct) {
+        this.idleAct.setEffectiveWeight((1 - this.rigMoveW) * (1 - actWeight * 0.9));
+        this.idleAct.timeScale = this.rooted ? 0.2 : 0.44;
+      }
+      if (this.walkAct) {
+        this.walkAct.setEffectiveWeight(this.rigMoveW * (1 - actWeight * 0.9));
+        this.walkAct.timeScale = clamp(this.speed / 4.4, 0.28, 0.68);
+      }
+      if (this.activeOneShot && !this.activeOneShot.isRunning()) {
+        this.activeOneShot = null;
+      }
+      this.mixer.update(dt);
+
+      // Gentle head gaze toward what the Grovewarden watches
+      const headB = this.rigBones.get('Head');
+      if (headB) {
+        let hy = 0, hx = this.rooted ? 0.14 : 0.04;
+        if (this.look) {
+          this.root.worldToLocal(this.v.copy(this.look));
+          hy = clamp(Math.atan2(this.v.x, this.v.z), -0.65, 0.65);
+          hx = clamp(-Math.atan2(this.v.y - this.targetHeight * 0.78, Math.hypot(this.v.x, this.v.z)), -0.3, 0.35);
+        }
+        this.rigHeadYaw += (hy - this.rigHeadYaw) * clamp(dt * 1.4 || 1);
+        this.rigHeadPitch += (hx - this.rigHeadPitch) * clamp(dt * 1.4 || 1);
+        headB.rotation.y += this.rigHeadYaw * 0.65;
+        headB.rotation.x += this.rigHeadPitch * 0.55;
+      }
+      this.syncRigJoints();
+      return;
+    }
+
+    // ── Procedural fallback body (only while GLB is streaming in) ──
+    const mr = this.model.root;
+    mr.updateMatrixWorld(true);
     let lift = 0, swayX = 0;
     for (const side of SIDES) {
       const f = this.feet[side];
@@ -224,23 +404,21 @@ export class Ent {
     this.roll += (swayX * 0.035 - this.roll) * clamp(dt * 2 || 1);
     pv.rotation.set(this.pitch + Math.sin(this.t * 0.31) * 0.01, Math.sin(this.t * 0.2) * 0.02 - swayX * 0.03, this.roll);
     pv.updateMatrix();
-    // head: turn toward what it looks at (clamped), dip a little when rooted
     const hd = this.model.head;
     let hy = 0, hx = this.rooted ? 0.22 : 0.08;
     if (this.look) {
-      this.root.worldToLocal(this.v.copy(this.look));
+      mr.worldToLocal(this.v.copy(this.look));
       hy = clamp(Math.atan2(this.v.x, this.v.z), -0.7, 0.7);
       hx = clamp(-Math.atan2(this.v.y - 34, Math.hypot(this.v.x, this.v.z)) - this.pitch, -0.35, 0.45);
     }
     hd.rotation.y += (hy - hd.rotation.y) * clamp(dt * 1.2 || 1);
     hd.rotation.x += (hx - hd.rotation.x) * clamp(dt * 1.2 || 1);
 
-    // ── legs: hip → knee → ankle (two-bone IK, knees forward) ──
     for (const side of SIDES) {
       const f = this.feet[side], fl = f.swing >= 0 ? Math.sin(f.swing * Math.PI) : 0;
       const hip = this.v.set(SX[side] * ENT.hipX, 0, 0).applyMatrix4(pv.matrix);
       const ankle = this.w.copy(f.pos); ankle.y += (ENT.ankleY + fl * 2.6) * this.scale;
-      this.root.worldToLocal(ankle);
+      mr.worldToLocal(ankle);
       const knee = this.u;
       solve2(hip, ankle, ENT.thigh, ENT.shin, this.bz.set(0, 0, 1), knee);
       orient(this.model.segs[`${side}UpLeg`].group, hip, knee, this.bz.set(0, 0, 1), this.m4, this.bx, this.by);
@@ -248,19 +426,17 @@ export class Ent {
       const fg = this.model.feet[side];
       fg.position.copy(ankle);
       fg.rotation.set(-fl * 0.35, wrap(f.yaw - this.yaw), 0);
-      this.joints.hip[side].copy(hip).applyMatrix4(this.root.matrixWorld);
-      this.joints.knee[side].copy(knee).applyMatrix4(this.root.matrixWorld);
-      this.joints.ankle[side].copy(ankle).applyMatrix4(this.root.matrixWorld);
+      this.joints.hip[side].copy(hip).applyMatrix4(mr.matrixWorld);
+      this.joints.knee[side].copy(knee).applyMatrix4(mr.matrixWorld);
+      this.joints.ankle[side].copy(ankle).applyMatrix4(mr.matrixWorld);
     }
-    this.joints.pelvis.copy(pv.position).applyMatrix4(this.root.matrixWorld);
+    this.joints.pelvis.copy(pv.position).applyMatrix4(mr.matrixWorld);
 
-    // ── arms: shoulder → elbow → wrist (elbows back and out); hands from the action ──
     const reach = ENT.upperArm + ENT.foreArm;
     for (const side of SIDES) {
       const sh = this.bx.set(SX[side] * ENT.shoulderX, ENT.shoulderY, 0).applyMatrix4(pv.matrix).clone();
-      // idle: hanging, swinging against the legs; rooted: boughs lifted up and out like a tree's limbs
       const other = this.feet[side === 'Left' ? 'Right' : 'Left'];
-      this.root.worldToLocal(this.w.copy(other.pos));
+      mr.worldToLocal(this.w.copy(other.pos));
       const hi = this.handIdle[side];
       if (this.rooted) hi.set(sh.x + SX[side] * 12, sh.y + 8 + Math.sin(this.t * 0.3 + SX[side]) * 0.4, sh.z - 2);
       else hi.set(sh.x + SX[side] * 2.6, sh.y - reach * 0.88, sh.z + 1.5 + clamp(this.w.z * 0.35, -3.5, 3.5) + breathe);
@@ -271,7 +447,7 @@ export class Ent {
         if (handMode === 'over') this.v.set(SX[side] * 2.2, sh.y + 13, sh.z - 2.5);
         else if (handMode === 'wide') this.v.set(sh.x + SX[side] * 13, sh.y + 5, sh.z + 5);
         else {
-          this.root.worldToLocal(this.v.copy(a.target));
+          mr.worldToLocal(this.v.copy(a.target));
           this.v.y += a.kind === 'bless' ? 7 : a.kind === 'tend' ? 2.8 : 3.2;
           if (a.kind === 'smash') this.v.x += SX[side] * 1.8;
           if (a.kind === 'tend' || a.kind === 'bless') this.v.x += SX[side] * 0.5;
@@ -282,22 +458,24 @@ export class Ent {
       const bend = this.by.set(SX[side] * 0.6, -0.3, -1).normalize();
       solve2(sh, ht, ENT.upperArm, ENT.foreArm, bend, elbow);
       const wrist = this.w.copy(ht);
-      // clamp the wrist to the arm's reach (solve2 clamps the elbow; place the wrist along the same line)
       const d = wrist.distanceTo(sh);
       if (d > reach * 0.999) wrist.sub(sh).multiplyScalar((reach * 0.999) / d).add(sh);
       const fwdRef = this.bz.set(0, 0, 1);
       orient(this.model.segs[`${side}Arm`].group, sh, elbow, fwdRef, this.m4, this.bx, this.by);
       orient(this.model.segs[`${side}ForeArm`].group, elbow, wrist, fwdRef, this.m4, this.bx, this.by);
-      this.joints.hand[side].copy(wrist).applyMatrix4(this.root.matrixWorld);
+      this.joints.hand[side].copy(wrist).applyMatrix4(mr.matrixWorld);
     }
-    // eyes: dim amber asleep, bright when awake (bloom catches it)
     const e = 0.35 + this.awake * 3.2 + (a?.kind === 'smash' || a?.kind === 'threaten' ? 2 : 0);
     this.model.eyes.color.copy(this.model.eyeColor).multiplyScalar(e);
     this.root.updateMatrixWorld(true);
     this.joints.head.set(0, 0, 0).applyMatrix4(hd.matrixWorld);
   }
 
-  dispose() { this.root.removeFromParent(); this.model.dispose(); }
+  dispose() {
+    this.mixer?.stopAllAction();
+    this.root.removeFromParent();
+    if (!this.proceduralDetached) this.model.dispose();
+  }
 }
 
 /** Two-bone IK: from root a to target b with lengths l1, l2; the middle joint bends toward `bend`. */

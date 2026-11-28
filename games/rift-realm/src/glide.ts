@@ -184,7 +184,10 @@ export class Glide {
     this.lastYaw = opts.yaw;
     const w = rig?.wings ?? null;
     this.hasWings = !!w;
-    if (!rig || !w) return;
+    if (!rig || !w) {
+      if (rig) { rig.glidePose.w = 0; rig.glidePose.pitch = 0; }
+      return;
+    }
     this.open = w.open;
     w.target.open = this.wantOpen;
     w.target.sweep = this.gliding ? T.glideSweep : this.wasGround ? 1 : 0.5;

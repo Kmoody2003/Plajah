@@ -3,7 +3,7 @@ import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { CollisionWorld } from './collision';
 import type { InputState } from './controls';
-import { assets, CharacterRig } from './characters';
+import { assets, CharacterRig, preloadVessel } from './characters';
 import { VESSELS, VESSEL_ORDER, buildVesselMesh, type VesselId, type VesselSpec } from './vessels';
 import { WEAPONS, WeaponEnergy, WeaponViewmodel, buildWeapon, type ReloadPhases, type WeaponModel, type WeaponSpec } from './weapons';
 import { Glide } from './glide';
@@ -214,6 +214,9 @@ export class PlayerController {
   onDrownTick?: (dmg: number) => void;
   onClimbMantle?: (pos: THREE.Vector3) => void;
   onSwitchVessel?: (spec: VesselSpec) => void;
+  /** Whether mid-game character switching is permitted (true only in Free Roam; locked in structured modes). */
+  canSwitchVessel: () => boolean = () => true;
+  onVesselSwitchBlocked?: () => void;
   onSoulSurge?: () => void;
   onStrike?: () => void;
   /** A reload started (sound). */
@@ -288,23 +291,28 @@ export class PlayerController {
   }
 
   cycleVessel() {
+    if (!this.canSwitchVessel()) { this.onVesselSwitchBlocked?.(); return; }
     const idx = VESSEL_ORDER.indexOf(this.vessel.id);
     const next = VESSEL_ORDER[(idx + 1) % VESSEL_ORDER.length];
     this.setVessel(next);
   }
 
   /** Which CharacterAsset and standing height (m) each Soul Vessel class uses in third person. */
-  private vesselAssetFor(id: VesselId): { asset: NonNullable<typeof assets.stalker>; height: number } | null {
-    if (id === 'aegis' && assets.paladin) return { asset: assets.paladin, height: 2.02 };
-    if (id === 'seraph' && assets.seraph) return { asset: assets.seraph, height: 1.78 };
-    if (id === 'sylva' && assets.sylva) return { asset: assets.sylva, height: 2.04 };
-    if (id === 'pyre' && assets.pyre) return { asset: assets.pyre, height: 2.15 };
-    if (assets.stalker) return { asset: assets.stalker, height: 1.9 };
-    const fallback = assets.paladin ?? assets.seraph ?? assets.sylva ?? assets.pyre;
-    return fallback ? { asset: fallback, height: 1.9 } : null;
+  private vesselAssetFor(id: VesselId): { asset: NonNullable<typeof assets.stalker>; height: number; exact: boolean } | null {
+    if (id === 'aegis' && assets.paladin) return { asset: assets.paladin, height: 2.02, exact: true };
+    if (id === 'stalker' && assets.stalker) return { asset: assets.stalker, height: 1.9, exact: true };
+    if (id === 'seraph' && assets.seraph) return { asset: assets.seraph, height: 1.78, exact: true };
+    if (id === 'sylva' && assets.sylva) return { asset: assets.sylva, height: 2.04, exact: true };
+    if (id === 'pyre' && assets.pyre) return { asset: assets.pyre, height: 2.15, exact: true };
+    const fallback = assets.paladin ?? assets.stalker ?? assets.seraph ?? assets.sylva ?? assets.pyre;
+    return fallback ? { asset: fallback, height: 1.9, exact: false } : null;
   }
 
-  setVessel(id: VesselId) {
+  setVessel(id: VesselId, force = false) {
+    if (!force && this.enabled && id !== this.vessel.id && !this.canSwitchVessel()) {
+      this.onVesselSwitchBlocked?.();
+      return;
+    }
     const spec = VESSELS[id];
     if (this.vessel.id !== id && this.downedT <= 0 && this.enabled) {
       // lower the old gun, raise the new one (the body's mocap switch, squeezed); a running reload is dropped
@@ -320,15 +328,23 @@ export class PlayerController {
 
     this.object.remove(this.vesselMesh);
     const chosen = this.vesselAssetFor(id);
+    if (!chosen || !chosen.exact) {
+      // Load this vessel's sculpted rig on demand if it hasn't finished background streaming yet
+      void preloadVessel(id).then((loaded) => {
+        if (!loaded || this.vessel.id !== id) return;
+        this.vesselRigs.delete(id);
+        this.setVessel(id, true);
+      });
+    }
     if (chosen) {
-      let cached = this.vesselRigs.get(id);
+      let cached = chosen.exact ? this.vesselRigs.get(id) : undefined;
       if (!cached) {
         const rig = new CharacterRig(chosen.asset, chosen.height);
         const wrap = new THREE.Group();
         rig.root.rotation.y = Math.PI; // rig faces +Z, the player's forward is -Z
         wrap.add(rig.root);
         cached = { rig, wrap };
-        this.vesselRigs.set(id, cached);
+        if (chosen.exact) this.vesselRigs.set(id, cached);
       }
       this.rig = cached.rig;
       this.vesselMesh = cached.wrap;
@@ -350,11 +366,11 @@ export class PlayerController {
     this.onSwitchVessel?.(spec);
   }
 
-  /** Apply an active Armory loadout: switch vessel if requested, update bonuses, and mount 3D weapon/shield/armor GLBs. */
+  /** Apply an active Armory loadout: switch vessel ONLY when Free Roam allows it, update bonuses, and mount 3D weapon/shield/armor GLBs. */
   applyLoadout(preset: LoadoutPreset, stats: ComputedLoadoutStats) {
     this.activeLoadout = preset;
     this.loadoutStats = stats;
-    if (preset.vessel !== this.vessel.id) {
+    if (preset.vessel !== this.vessel.id && this.canSwitchVessel()) {
       this.setVessel(preset.vessel);
     } else {
       const ratio = this.maxHp > 0 ? this.hp / this.maxHp : 1;
@@ -817,6 +833,7 @@ export class PlayerController {
         if (input.toggleViewPressed) this.toggleView();
         if (input.cycleVesselPressed) this.cycleVessel();
         if (input.dashPressed) this.triggerDash(input.moveX, input.moveY);
+        if (input.grapplePressed) this.onGrapple?.();
         if (input.surgePressed) this.onSoulSurge?.();
         if (input.strikePressed) { if (!this.onStrike) this.strikeAnim(); this.onStrike?.(); }
         wish.addScaledVector(right, input.moveX).addScaledVector(forward, input.moveY);
@@ -841,9 +858,9 @@ export class PlayerController {
       }
       if (wish.lengthSq() > 1) wish.normalize();
 
-      // edge-triggered jump (held Space doesn't bunny-hop by itself), buffered so early presses count
-      const space = this.keys.has('Space');
-      if ((space && !this.spaceHeld) || input?.jumpPressed) this.jumpBuffer = JUMP_BUFFER;
+      // edge-triggered jump (held Space / A doesn't bunny-hop by itself), buffered so early presses count
+      const space = this.keys.has('Space') || !!input?.jumpHeld;
+      if ((this.keys.has('Space') && !this.spaceHeld) || input?.jumpPressed) this.jumpBuffer = JUMP_BUFFER;
       this.spaceHeld = space;
     }
 
@@ -883,7 +900,8 @@ export class PlayerController {
     if (!water) { this.underwater = false; }
 
     // ── 2. Rock-face & cliff climbing latch detection ──
-    const wantDrop = this.keys.has('KeyC') || this.keys.has('ControlLeft') || this.keys.has('ControlRight');
+    const diveHeld = this.keys.has('KeyC') || this.keys.has('ControlLeft') || this.keys.has('ControlRight') || !!input?.crouchHeld;
+    const wantDrop = diveHeld || !!input?.crouchPressed;
     const moveFwdHeld = this.keys.has('KeyW') || this.keys.has('ArrowUp') || (input?.moveY ?? 0) > 0.25;
     const moveBackHeld = this.keys.has('KeyS') || this.keys.has('ArrowDown') || (input?.moveY ?? 0) < -0.25;
     const moveRightHeld = (this.keys.has('KeyD') || this.keys.has('ArrowRight') ? 1 : 0) - (this.keys.has('KeyA') || this.keys.has('ArrowLeft') ? 1 : 0) + (input?.moveX ?? 0);
@@ -1021,7 +1039,6 @@ export class PlayerController {
       // Physics-accurate Archimedes buoyancy + downstream stream current + swim thrust
       const swimSpd = 6.2 * this.loadoutStats.swimMul * this.moveMul * (this.dashTimer > 0 ? 1.85 : 1);
       if (this.dashTimer > 0) this.dashTimer = Math.max(0, this.dashTimer - dt);
-      const diveHeld = this.keys.has('KeyC') || this.keys.has('ControlLeft') || this.keys.has('ControlRight');
       const swimVert = (this.spaceHeld ? 1 : 0) - (diveHeld ? 1 : 0);
       const resW = stepWaterBuoyancy({
         feetY: posNow.y,
@@ -1195,8 +1212,15 @@ export class PlayerController {
       this.bodyYaw += turned;
     }
     const swimRoll = this.swimming ? Math.sin(this.clock * 4.5) * 0.14 * Math.min(1, hsp0 / 3) : 0;
-    const bankT = this.glide.gliding ? this.glide.bank : this.swimming ? swimRoll : faceAim ? 0 : THREE.MathUtils.clamp(-(turned / Math.max(dt, 1e-3)) * 0.035 * Math.min(1, hsp0 / 9), -0.22, 0.22);
-    this.bank += (bankT - this.bank) * (1 - Math.exp(-dt * 10));
+    const bankT = this.glide.gliding
+      ? this.glide.bank
+      : this.swimming
+        ? swimRoll
+        : (faceAim || hsp0 < 0.8)
+          ? 0
+          : THREE.MathUtils.clamp(-(turned / Math.max(dt, 1e-3)) * 0.035 * Math.min(1, hsp0 / 9), -0.22, 0.22);
+    this.bank += (bankT - this.bank) * (1 - Math.exp(-dt * 12));
+    if (Math.abs(this.bank) < 1e-3 && bankT === 0) this.bank = 0;
     this.object.rotation.y = this.yaw;
     this.vesselMesh.rotation.set(0, this.bodyYaw - this.yaw, this.bank, 'YXZ');
     if (this.rig) {
@@ -1205,7 +1229,11 @@ export class PlayerController {
       const lz = -(this.vel.x * Math.sin(this.bodyYaw) + this.vel.z * Math.cos(this.bodyYaw));
       let ap = this.pitch;
       if (!this.firstPerson && this.aimPointOk) { const c = this.chestPos(_chest2), dx = this.aimPoint.x - c.x, dz = this.aimPoint.z - c.z; ap = Math.atan2(this.aimPoint.y - c.y, Math.hypot(dx, dz)); }
-      this.rig.aimPitch = this.firstPerson || this.swimming || this.climbing ? 0 : ap;
+      // Only pitch the spine when actively aiming/firing in combat; keep peaceful idle strictly upright
+      const activeAim = this.aiming || this.faceAimT > 0 || this.sinceShot < 0.9;
+      this.rig.aimPitch = this.firstPerson || this.swimming || this.climbing || !activeAim ? 0 : ap;
+      this.rig.glidePose.w = 0;
+      this.rig.glidePose.pitch = 0;
       this.glide.pose(this.rig, { firstPerson: this.firstPerson, yaw: this.bodyYaw, scene: this.object.parent, camera: this.camera, pitch: this.pitch });
       // Smooth forward prone swimming posture when swimming in streams/pools!
       if (this.swimming && !this.glide.gliding) {
@@ -1228,9 +1256,11 @@ export class PlayerController {
     const targetDist = this.firstPerson ? 0 : THREE.MathUtils.lerp(this.thirdDist, Math.min(this.thirdDist, 1.7), this.aimBlend) + this.glideCam * 1.2;
     this.camDist = THREE.MathUtils.lerp(this.camDist, targetDist, Math.min(1, dt * 14));
 
-    // speed feel: FOV opens with speed and kicks on a dash; a little lean into strafes; landing dip
+    // speed feel + Ultra-Wide Hor+ FOV compensation (avoids fisheye edge distortion on 21:9 / 32:9 monitors)
     const hsp = Math.hypot(this.vel.x, this.vel.z);
-    const fovTarget = THREE.MathUtils.lerp(BASE_FOV + Math.min(12, hsp * 0.55) + (this.dashTimer > 0 ? 6 : 0), BASE_FOV * (this.firstPerson ? this.weapon.adsFov : Math.max(0.82, this.weapon.adsFov)), this.aimBlend);
+    const uwAspect = Math.max(0, (this.camera.aspect - 1.85) / 1.7);
+    const effBaseFov = BASE_FOV - Math.min(10, uwAspect * 10);
+    const fovTarget = THREE.MathUtils.lerp(effBaseFov + Math.min(12, hsp * 0.55) + (this.dashTimer > 0 ? 6 : 0), effBaseFov * (this.firstPerson ? this.weapon.adsFov : Math.max(0.82, this.weapon.adsFov)), this.aimBlend);
     if (Math.abs(this.camera.fov - fovTarget) > 0.05) {
       this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, fovTarget, Math.min(1, dt * 10));
       this.camera.updateProjectionMatrix();

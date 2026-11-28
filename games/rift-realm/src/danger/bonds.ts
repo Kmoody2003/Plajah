@@ -160,7 +160,7 @@ export class Bonds {
     this.clock += dt; this.prayCd -= dt; this.soulCd -= dt;
     const env = this.env, pl = env.player, pp = pl.object.position;
     // ── pray (hold T / L3) ──
-    const pad = navigator.getGamepads ? navigator.getGamepads()?.[0] : null;
+    const pad = navigator.getGamepads ? ([...navigator.getGamepads()].find((g) => g && g.connected !== false) ?? null) : null;
     const padHeld = !!pad?.buttons[10]?.pressed;
     const can = pl.enabled && !pl.downed && !env.busy?.();
     const held = (this.keyHeld || padHeld) && can;
